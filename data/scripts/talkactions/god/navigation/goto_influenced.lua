@@ -1,10 +1,20 @@
 local gotoInfluenced = TalkAction("/gotoinfluenced")
 function gotoInfluenced.onSay(player, words, param)
-    local influencedList = Game.getInfluencedCreatures()
+    local targetType = "influenced"
+    local list = {}
 
-    if #influencedList == 0 then
+    -- Parse and clean parameter (handles commas, spaces, etc.)
+    param = param:lower():gsub(",", ""):trim()
+    if param == "fiendish" then
+        targetType = "fiendish"
+        list = Game.getFiendishCreatures()
+    else
+        list = Game.getInfluencedCreatures()
+    end
+
+    if #list == 0 then
         player:sendTextMessage(MESSAGE_EVENT_ORANGE,
-            "[GM] There are no active influenced creatures at the moment.")
+            string.format("[GM] There are no active %s creatures at the moment.", targetType))
         return false
     end
 
@@ -12,7 +22,7 @@ function gotoInfluenced.onSay(player, words, param)
     local closest = nil
     local closestDist = math.huge
 
-    for _, monster in ipairs(influencedList) do
+    for _, monster in ipairs(list) do
         local mPos = monster:getPosition()
         local dist = math.abs(playerPos.x - mPos.x) + math.abs(playerPos.y - mPos.y)
                    + math.abs(playerPos.z - mPos.z) * 10
@@ -24,7 +34,7 @@ function gotoInfluenced.onSay(player, words, param)
 
     if not closest then
         player:sendTextMessage(MESSAGE_EVENT_ORANGE,
-            "[GM] There are no active influenced creatures at the moment.")
+            string.format("[GM] There are no active %s creatures at the moment.", targetType))
         return false
     end
 

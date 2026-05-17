@@ -110,6 +110,9 @@ namespace monster_level {
 
 Skulls_t Monster::getSkull() const
 {
+	if (fiendish) {
+		return SKULL_RED;
+	}
 	if (influenced) {
 		return SKULL_GREEN;
 	}
@@ -119,6 +122,12 @@ Skulls_t Monster::getSkull() const
 void Monster::setInfluenced(bool v)
 {
 	influenced = v;
+	g_game.updateCreatureSkull(this);
+}
+
+void Monster::setFiendish(bool v)
+{
+	fiendish = v;
 	g_game.updateCreatureSkull(this);
 }
 

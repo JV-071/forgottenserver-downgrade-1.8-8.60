@@ -99,8 +99,7 @@ local CONVERGENCE_PRICES = {
 local DUST_TO_SLIVERS = 60
 local SLIVERS_GENERATED = 3
 local SLIVERS_TO_CORE = 50
-local DUST_LIMIT_BASE_COST = 100
-local MAX_DUST_LIMIT = 225
+local MAX_DUST_LIMIT = 325
 local FORGE_HISTORY_LIMIT = 50
 
 local DUST_FUSION = 100
@@ -1014,7 +1013,7 @@ local function handleTransfer(player, msg)
 end
 
 local function getDustLimitIncreaseCost(player)
-	return DUST_LIMIT_BASE_COST + math.max(0, getForgeDustLimit(player) - 100)
+	return getForgeDustLimit(player) - 75
 end
 
 local function handleConvert(player, msg)

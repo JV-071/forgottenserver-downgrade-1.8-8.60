@@ -2,11 +2,18 @@ local findInfluenced = TalkAction("/findinfluenced", "!findinfluenced")
 local cooldowns = {}
 
 function findInfluenced.onSay(player, words, param)
-    local influencedList = Game.getInfluencedCreatures()
+    -- Retrieve and merge both influenced and fiendish lists
+    local list = {}
+    for _, m in ipairs(Game.getInfluencedCreatures()) do
+        list[#list + 1] = m
+    end
+    for _, m in ipairs(Game.getFiendishCreatures()) do
+        list[#list + 1] = m
+    end
 
-    if #influencedList == 0 then
+    if #list == 0 then
         player:sendTextMessage(MESSAGE_EVENT_ORANGE,
-            "There are no active influenced creatures at the moment.")
+            "There are no active influenced or fiendish creatures at the moment.")
         return false
     end
 
@@ -14,7 +21,7 @@ function findInfluenced.onSay(player, words, param)
     local closest = nil
     local closestDist = math.huge
 
-    for _, monster in ipairs(influencedList) do
+    for _, monster in ipairs(list) do
         local mPos = monster:getPosition()
         local dist = math.abs(playerPos.x - mPos.x) + math.abs(playerPos.y - mPos.y)
                    + math.abs(playerPos.z - mPos.z) * 10
@@ -26,7 +33,7 @@ function findInfluenced.onSay(player, words, param)
 
     if not closest then
         player:sendTextMessage(MESSAGE_EVENT_ORANGE,
-            "There are no active influenced creatures at the moment.")
+            "There are no active influenced or fiendish creatures at the moment.")
         return false
     end
 
@@ -62,8 +69,8 @@ function findInfluenced.onSay(player, words, param)
 
     player:sendTextMessage(MESSAGE_INFO_DESCR,
         string.format(
-            "The nearest influenced creature: %s is to the %s, approximately %d SQMs from you.",
-            monsterName, direction, sqmDist))
+            "The nearest influenced creature is to the %s, approximately %d SQMs from you.",
+            direction, sqmDist))
     player:getPosition():sendMagicEffect(CONST_ME_MAGIC_RED)
     return false
 end

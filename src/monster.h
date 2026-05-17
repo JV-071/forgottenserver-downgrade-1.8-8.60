@@ -93,6 +93,8 @@ public:
 	void setInfluenced(bool v);
 	uint8_t getInfluencedLevel() const { return influencedLevel; }
 	void setInfluencedLevel(uint8_t level) { influencedLevel = level; }
+	bool isFiendish() const { return fiendish; }
+	void setFiendish(bool v);
 	Skulls_t getSkull() const override;
 	int32_t getLevel() const { return level; }
 
@@ -201,6 +203,7 @@ private:
 	bool walkingToSpawn = false;
 	bool influenced = false;
 	uint8_t influencedLevel = 0;
+	bool fiendish = false;
 
 	void onCreatureEnter(Creature* creature);
 	void onCreatureLeave(Creature* creature);
