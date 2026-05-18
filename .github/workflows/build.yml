@@ -122,6 +122,11 @@ jobs:
         with:
           vcpkgGitCommitId: "62159a45e18f3a9ac0548628dcaf74fcb60c6ff9"
 
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Cache Lua 5.5 (Windows)
         id: cache-lua-win
         uses: actions/cache@v4
