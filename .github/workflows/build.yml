@@ -1,0 +1,202 @@
+name: Build TFS (Linux & Windows)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  LUA_VERSION: "5.5.0"
+  BUILD_TYPE: Release
+
+jobs:
+  # ─────────────────────────────────────────────
+  #  Linux Build (Ubuntu 24.04)
+  # ─────────────────────────────────────────────
+  build-linux:
+    name: Linux (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git wget cmake build-essential pkg-config \
+            libmysqlclient-dev \
+            libboost-system-dev libboost-iostreams-dev libboost-filesystem-dev \
+            libboost-locale-dev libboost-regex-dev libboost-json-dev \
+            libpugixml-dev libfmt-dev libssl-dev libspdlog-dev libmimalloc-dev \
+            libabsl-dev
+
+      - name: Cache Lua 5.5
+        id: cache-lua
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/lib/liblua.a
+          key: lua-${{ env.LUA_VERSION }}-linux
+
+      - name: Build and install Lua 5.5
+        if: steps.cache-lua.outputs.cache-hit != 'true'
+        run: |
+          cd /tmp
+          wget -q "https://www.lua.org/ftp/lua-${LUA_VERSION}.tar.gz"
+          tar -xzf "lua-${LUA_VERSION}.tar.gz"
+          cd "lua-${LUA_VERSION}"
+          make linux -j"$(nproc)"
+          sudo make install
+
+      - name: Cache simdutf
+        id: cache-simdutf
+        uses: actions/cache@v4
+        with:
+          path: ~/.local
+          key: simdutf-linux-${{ hashFiles('.github/workflows/build.yml') }}
+
+      - name: Build and install simdutf
+        if: steps.cache-simdutf.outputs.cache-hit != 'true'
+        run: |
+          cd /tmp
+          git clone --depth 1 https://github.com/simdutf/simdutf.git
+          cd simdutf
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/.local
+          cmake --build build -- -j"$(nproc)"
+          cmake --install build
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DDISABLE_STATS=1 \
+            -DENABLE_SLOW_TASK_DETECTION=OFF \
+            -DUSE_MIMALLOC=ON \
+            -DENABLE_NATIVE_OPTIMIZATIONS=OFF \
+            -DLUA_INCLUDE_DIR=/usr/local/include \
+            -DLUA_LIBRARY=/usr/local/lib/liblua.a \
+            -DLUA_LIBRARIES="/usr/local/lib/liblua.a;m;dl" \
+            -DLUA_VERSION_STRING=${{ env.LUA_VERSION }} \
+            -DCMAKE_PREFIX_PATH="/usr/local;$HOME/.local" \
+            -DSKIP_GIT=ON
+
+      - name: Build
+        run: cmake --build build -- -j"$(nproc)"
+
+      - name: Verify binary
+        run: |
+          file build/tfs
+          ldd build/tfs
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfs-linux-x64
+          path: build/tfs
+          retention-days: 90
+
+  # ─────────────────────────────────────────────
+  #  Windows Build (vcpkg + MSVC)
+  # ─────────────────────────────────────────────
+  build-windows:
+    name: Windows (MSVC 2022)
+    runs-on: windows-2022
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-windows
+      VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Export GitHub Actions cache variables
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: "62159a45e18f3a9ac0548628dcaf74fcb60c6ff9"
+
+      - name: Cache Lua 5.5 (Windows)
+        id: cache-lua-win
+        uses: actions/cache@v4
+        with:
+          path: C:\lua55
+          key: lua-${{ env.LUA_VERSION }}-windows-msvc
+
+      - name: Build Lua 5.5 (Windows)
+        if: steps.cache-lua-win.outputs.cache-hit != 'true'
+        shell: cmd
+        run: |
+          curl -L -o lua.tar.gz "https://www.lua.org/ftp/lua-%LUA_VERSION%.tar.gz"
+          tar -xzf lua.tar.gz
+          cd lua-%LUA_VERSION%
+          mkdir C:\lua55\include
+          mkdir C:\lua55\lib
+          copy src\lua.h C:\lua55\include\
+          copy src\luaconf.h C:\lua55\include\
+          copy src\lualib.h C:\lua55\include\
+          copy src\lauxlib.h C:\lua55\include\
+          copy src\lua.hpp C:\lua55\include\
+          cl /c /O2 /DLUA_COMPAT_5_3 /I src src\lapi.c src\lcode.c src\lctype.c src\ldebug.c src\ldo.c src\ldump.c src\lfunc.c src\lgc.c src\llex.c src\lmem.c src\lobject.c src\lopcodes.c src\lparser.c src\lstate.c src\lstring.c src\ltable.c src\ltm.c src\lundump.c src\lvm.c src\lzio.c src\lauxlib.c src\lbaselib.c src\lcorolib.c src\ldblib.c src\liolib.c src\lmathlib.c src\loadlib.c src\loslib.c src\lstrlib.c src\ltablib.c src\lutf8lib.c src\linit.c
+          lib /OUT:C:\lua55\lib\lua.lib *.obj
+
+      - name: Configure CMake (Windows)
+        shell: cmd
+        run: |
+          cmake -B build ^
+            -DCMAKE_BUILD_TYPE=%BUILD_TYPE% ^
+            -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake ^
+            -DVCPKG_TARGET_TRIPLET=x64-windows ^
+            -DVCPKG_MANIFEST_FEATURES=http;libmariadb ^
+            -DDISABLE_STATS=1 ^
+            -DENABLE_SLOW_TASK_DETECTION=OFF ^
+            -DLUA_INCLUDE_DIR=C:\lua55\include ^
+            -DLUA_LIBRARY=C:\lua55\lib\lua.lib ^
+            -DLUA_VERSION_STRING=%LUA_VERSION% ^
+            -DSKIP_GIT=ON
+
+      - name: Build (Windows)
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} -- /m
+
+      - name: Collect DLLs
+        shell: pwsh
+        run: |
+          $outDir = "build\${{ env.BUILD_TYPE }}"
+          if (-not (Test-Path "$outDir\tfs.exe")) {
+            $outDir = "build"
+          }
+          # Copy vcpkg DLLs that tfs.exe depends on
+          $vcpkgBin = "$env:VCPKG_ROOT\installed\x64-windows\bin"
+          if (Test-Path $vcpkgBin) {
+            Get-ChildItem "$vcpkgBin\*.dll" | ForEach-Object {
+              Copy-Item $_.FullName $outDir -Force -ErrorAction SilentlyContinue
+            }
+          }
+          # Also copy from vcpkg debug if Release dir doesn't have them
+          $vcpkgDebugBin = "$env:VCPKG_ROOT\installed\x64-windows\debug\bin"
+          if (Test-Path $vcpkgDebugBin) {
+            Get-ChildItem "$vcpkgDebugBin\*.dll" | ForEach-Object {
+              if (-not (Test-Path "$outDir\$($_.Name)")) {
+                Copy-Item $_.FullName $outDir -Force -ErrorAction SilentlyContinue
+              }
+            }
+          }
+          Write-Host "=== Files in output dir ==="
+          Get-ChildItem $outDir | Format-Table Name, Length
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfs-windows-x64
+          path: |
+            build/${{ env.BUILD_TYPE }}/tfs.exe
+            build/${{ env.BUILD_TYPE }}/*.dll
+            build/tfs.exe
+            build/*.dll
+          retention-days: 90
