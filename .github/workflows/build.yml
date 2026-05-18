@@ -73,7 +73,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DDISABLE_STATS=1 \
             -DENABLE_SLOW_TASK_DETECTION=OFF \
-            -DUSE_MIMALLOC=ON \
+            -DUSE_MIMALLOC=OFF \
             -DENABLE_NATIVE_OPTIMIZATIONS=OFF \
             -DLUA_INCLUDE_DIR=/usr/local/include \
             -DLUA_LIBRARY=/usr/local/lib/liblua.a \
