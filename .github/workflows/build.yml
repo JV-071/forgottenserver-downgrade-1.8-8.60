@@ -94,14 +94,23 @@ jobs:
         run: |
           mkdir -p dist
           cp build/tfs dist/
-          # Bundle libmimalloc
+          
+          echo "Coletando dependências dinâmicas..."
+          # Coleta todas as libs que o ldd resolve, exceto as core do sistema
+          ldd build/tfs | grep "=> /" | awk '{print $3}' | while read -r lib; do
+            libname=$(basename "$lib")
+            # Ignora bibliotecas base do sistema que devem ser providas pelo SO host
+            if [[ ! "$libname" =~ ^(libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libgcc_s\.so|libstdc\+\+\.so) ]]; then
+              cp -n "$lib" dist/
+            fi
+          done
+          
+          # Tenta pegar explicitamente a mimalloc caso o ldd não a tenha resolvido com path absoluto
           MIMALLOC_SO=$(ldconfig -p | grep 'libmimalloc.so.2' | awk '{print $NF}' | head -1)
           if [ -n "$MIMALLOC_SO" ]; then
-            cp "$MIMALLOC_SO" dist/
-            echo "Bundled: $MIMALLOC_SO"
-          else
-            find /usr /lib -name 'libmimalloc.so.2' 2>/dev/null | head -1 | xargs -I{} cp {} dist/ || true
+            cp -n "$MIMALLOC_SO" dist/ || true
           fi
+          
           # Create launcher script
           cat > dist/run.sh << 'EOF'
           #!/bin/bash
