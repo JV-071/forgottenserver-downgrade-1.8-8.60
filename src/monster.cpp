@@ -3165,13 +3165,33 @@ void Monster::death(Creature*)
 			}
 			if (hasLoot) {
 				if (player) {
+					const bool useColorizedLoot =
+					    ConfigManager::getBoolean(ConfigManager::COLORIZED_LOOT_VALUE) &&
+					    (player->isFonticakClient() || player->isAstraClient());
 					std::string lootString;
 					const auto& itemList = rewardContainer->getItemList();
 					for (auto lootIt = itemList.begin(); lootIt != itemList.end(); ++lootIt) {
 						if (lootIt != itemList.begin()) {
 							lootString += ", ";
 						}
-						lootString += (*lootIt)->getNameDescription();
+						const Item* lootItem = lootIt->get();
+						if (!lootItem) {
+							continue;
+						}
+						const std::string description = lootItem->getNameDescription();
+						if (!useColorizedLoot) {
+							lootString += description;
+							continue;
+						}
+						const ItemType& itemType = Item::items[lootItem->getID()];
+						const uint32_t count =
+						    itemType.stackable ? std::max<uint32_t>(1, lootItem->getItemCount()) : 1;
+						const uint64_t unitValue = itemType.sellPrice > 0 ? itemType.sellPrice
+						                                                     : (itemType.buyPrice > 0
+						                                                            ? itemType.buyPrice
+						                                                            : itemType.worth);
+						const uint64_t itemValue = unitValue * count;
+						lootString += fmt::format("{{{}:{}|{}}}", lootItem->getID(), itemValue, description);
 					}
 					player->getRewardChest().internalAddThing(rewardContainer);
 					player->sendTextMessage(MESSAGE_STATUS_DEFAULT,
