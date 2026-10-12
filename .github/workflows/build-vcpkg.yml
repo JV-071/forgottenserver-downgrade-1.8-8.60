@@ -99,6 +99,7 @@ jobs:
             const childEnv = { ...process.env };
             delete childEnv.ACTIONS_RUNTIME_TOKEN;
             delete childEnv.ACTIONS_RESULTS_URL;
+            delete childEnv['INPUT_GITHUB-TOKEN'];
             await exec.exec('pwsh', ['-NoLogo', '-NoProfile', '-File', 'cmake/ci/SetupCompilerCache.ps1'], { env: childEnv });
         id: compiler-setup
 
