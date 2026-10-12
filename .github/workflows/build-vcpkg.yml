@@ -141,7 +141,7 @@ jobs:
         run: |
           $status = git status --porcelain
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $status | Set-Content build/diagnostics/worktree-status.txt
+          Set-Content build/diagnostics/worktree-status.txt -Value ($status -join [Environment]::NewLine) -NoNewline
           if ($status) { throw 'Generated CI files dirtied the source checkout; see worktree-status.txt.' }
 
       - name: Configure MSVC and build with CMake
