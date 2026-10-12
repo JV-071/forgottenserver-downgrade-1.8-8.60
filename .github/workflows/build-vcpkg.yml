@@ -47,7 +47,6 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: D:\vcache
       VCPKG_BINARY_SOURCES: clear;files,D:\vcache,readwrite
       SCCACHE_GHA_ENABLED: 'false'
-      SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_BASEDIRS: ${{ github.workspace }}
       SCCACHE_IGNORE_SERVER_IO_ERROR: '1'
@@ -68,6 +67,8 @@ jobs:
       - name: Read vcpkg baseline and prepare cache
         id: vcpkg-baseline
         run: |
+          $env:SCCACHE_DIR = Join-Path $env:RUNNER_TEMP 'sccache'
+          "SCCACHE_DIR=$env:SCCACHE_DIR" >> $env:GITHUB_ENV
           & ./cmake/ci/ReadBuildContext.ps1
 
       - name: Restore dependency cache
@@ -135,6 +136,13 @@ jobs:
         run: |
           & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify clean source metadata
+        run: |
+          $status = git status --porcelain
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $status | Set-Content build/diagnostics/worktree-status.txt
+          if ($status) { throw 'Generated CI files dirtied the source checkout; see worktree-status.txt.' }
 
       - name: Configure MSVC and build with CMake
         run: |

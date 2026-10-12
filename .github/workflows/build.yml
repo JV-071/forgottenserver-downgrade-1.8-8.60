@@ -50,6 +50,7 @@ jobs:
       - name: Initialize diagnostics
         run: |
           mkdir -p build/diagnostics
+          echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
           printf "### Linux build stages\n| Stage | Exit code | Seconds |\n| --- | --- | --- |\n" >> "$GITHUB_STEP_SUMMARY"
           git rev-parse HEAD > build/diagnostics/commit.txt
 
@@ -90,13 +91,13 @@ jobs:
       - name: Cache Lua 5.5 source
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ github.workspace }}/.cache/lua/lua-5.5.0.tar.gz
+          path: ${{ runner.temp }}/lua-source/lua-5.5.0.tar.gz
           key: lua-source-5.5.0-57ccc32bbbd005cab75bcc52444052535
 
       - name: Build patched Lua 5.5 from source
         run: |
           set -euo pipefail
-          cache_tar="$GITHUB_WORKSPACE/.cache/lua/lua-5.5.0.tar.gz"
+          cache_tar="$RUNNER_TEMP/lua-source/lua-5.5.0.tar.gz"
           expected_sha="57ccc32bbbd005cab75bcc52444052535af691789dba2b9016d5c50640d68b3d"
           mkdir -p "$(dirname "$cache_tar")"
 
@@ -167,6 +168,11 @@ jobs:
           cd ..
           rm -rf mio
 
+      - name: Verify clean source metadata
+        run: |
+          git status --porcelain > build/diagnostics/worktree-status.txt
+          test ! -s build/diagnostics/worktree-status.txt
+
       - name: Configure CMake
         run: |
           cmake --list-presets=all
@@ -215,6 +221,5 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
     env:
-      CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: 1G
       CCACHE_COMPILERCHECK: content

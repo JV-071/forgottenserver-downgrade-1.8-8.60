@@ -8,6 +8,10 @@ restored and saved by GitHub-owned actions. Repository setup code and the cache 
 do not receive Actions runtime cache credentials. Cache server I/O failures allow compilation
 without cache. Statistics collection cannot replace or fail successful tests.
 
+Generated compiler and Lua source caches live outside the source checkout.
+Before configuration, both jobs verify that generated CI files have not changed
+the worktree state used by the executable Git metadata.
+
 Stage logs preserve native exit codes and elapsed seconds. Diagnostics expire
 after seven days and contain configuration records, cache statistics and JUnit
 reports for CTest jobs. CTest requires a nonempty suite; test isolation is retained.
