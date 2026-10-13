@@ -51,7 +51,8 @@ struct MapLoadDiagnostics {
 
 MapLoadDiagnostics mapLoadDiagnostics;
 
-void noteMapItemAttributes(const BasicItem& item)\r\n{
+void noteMapItemAttributes(const BasicItem& item)
+{
     mapLoadDiagnostics.actionIds += item.actionId != 0;
     mapLoadDiagnostics.uniqueIds += item.uniqueId != 0;
     mapLoadDiagnostics.filledContainers += !item.items.empty();
@@ -188,11 +189,13 @@ bool replaceMapCacheFile(const std::filesystem::path& source, const std::filesys
 }
 } // namespace
 
-void MapCache::resetMapLoadDiagnostics()\r\n{
+void MapCache::resetMapLoadDiagnostics()
+{
     mapLoadDiagnostics = {};
 }
 
-void MapCache::reportMapLoadDiagnostics(const std::filesystem::path& mapPath)\r\n{
+void MapCache::reportMapLoadDiagnostics(const std::filesystem::path& mapPath)
+{
     if (mapLoadDiagnostics.actionIds == 0 && mapLoadDiagnostics.uniqueIds == 0 && mapLoadDiagnostics.filledContainers == 0) {
         return;
     }
