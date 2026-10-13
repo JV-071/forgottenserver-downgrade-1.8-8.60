@@ -126,7 +126,6 @@ jobs:
           -DLUA_INCLUDE_DIR=/usr/local/include
           -DLUA_LIBRARY=/usr/local/lib/liblua.a
           "-DLUA_LIBRARIES=/usr/local/lib/liblua.a;m;dl"
-          -DLUA_VERSION_STRING=5.5.0
 
       - name: Build
         run: cmake --build build --parallel $(nproc)
