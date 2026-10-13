@@ -90,6 +90,15 @@ bool loaderRejectsCompressedInput(const std::string& file, const OTB::Identifier
 	}
 	return false;
 }
+bool loaderRejectsInvalidCompressedInput(const std::string& file, const OTB::Identifier& id)
+{
+	try {
+		OTB::Loader loader{file, id, true};
+	} catch (const OTB::OTBDecompressionError&) {
+		return true;
+	}
+	return false;
+}
 
 } // namespace
 
@@ -196,4 +205,9 @@ TEST_CASE(gzip_otbm_is_opt_in_and_preserves_properties)
 	CHECK(readAll(props) == (std::vector<uint8_t>{0x01, 0x02}));
 }
 
+TEST_CASE(gzip_otbm_rejects_invalid_stream)
+{
+	TempOtbFile invalid{"tfs_fl_bad_gzip.otbm", {0x1F, 0x8B, 0x08, 0x00, 0x00}};
+	CHECK(loaderRejectsInvalidCompressedInput(invalid.path.string(), TEST_ID));
+}
 TFS_TEST_MAIN()
