@@ -61,7 +61,7 @@ jobs:
             cmake ninja-build build-essential pkg-config ccache \
             patch \
             gcc g++ \
-            libssl-dev zlib1g-dev libfmt-dev libspdlog-dev \
+            libssl-dev zlib1g-dev libarchive-dev libfmt-dev libspdlog-dev \
             libpugixml-dev libabsl-dev \
             libasio-dev \
             default-libmysqlclient-dev

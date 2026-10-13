@@ -6,6 +6,7 @@ foreach(test_src ${tests_SRC})
     target_link_libraries(${test_name} PRIVATE
         ${tfs_TEST_LIBRARY}
         ZLIB::ZLIB
+        LibArchive::LibArchive
         OpenSSL::Crypto
         absl::flat_hash_map
     )

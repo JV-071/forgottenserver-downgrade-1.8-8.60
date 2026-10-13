@@ -52,7 +52,7 @@ jobs:
           sudo apt-get install -y -qq --no-install-recommends \
             cmake ninja-build build-essential pkg-config \
             patch clang \
-            libssl-dev zlib1g-dev libfmt-dev libspdlog-dev \
+            libssl-dev zlib1g-dev libarchive-dev libfmt-dev libspdlog-dev \
             libpugixml-dev libabsl-dev \
             libasio-dev \
             default-libmysqlclient-dev

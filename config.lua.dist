@@ -302,7 +302,10 @@ RANGE_ROTATE_ITEM_INTERVAL = 250
 -- Map
 -- NOTE: set mapName WITHOUT .otbm at the end
 mapName = "world"
--- Enable only for a gzip-compressed OTBM stream saved with the .otbm extension.
+-- Enable only to load a compressed map. The loader recognizes GZip, ZIP, RAR/RAR5,
+-- 7-Zip, BZip2, XZ/LZMA, Zstandard and LZ4. Keep the normal map name above; when
+-- world.otbm is absent, the server looks for exactly one sidecar such as world.otbm.7z.
+-- Archive files may contain auxiliary XML files, but those XML files stay external.
 -- The normal uncompressed path remains memory-mapped.
 allowCompressedMap = false
 mapCacheMode = "auto" -- "auto" or "off"

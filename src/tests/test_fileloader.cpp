@@ -4,6 +4,8 @@
 
 #include "test_support.h"
 
+#include <archive.h>
+#include <archive_entry.h>
 #include <filesystem>
 #include <fstream>
 #include <zlib.h>
@@ -53,6 +55,57 @@ struct TempGzipOtbFile
 	}
 
 	~TempGzipOtbFile()
+	{
+		std::error_code ec;
+		std::filesystem::remove(path, ec);
+	}
+};
+
+struct TempZipOtbFile
+{
+	std::filesystem::path path;
+
+	TempZipOtbFile(const char* name, std::initializer_list<uint8_t> bytes) :
+	    path{std::filesystem::temp_directory_path() / name}
+	{
+		struct archive* archive = archive_write_new();
+		if (!archive || archive_write_set_format_zip(archive) != ARCHIVE_OK ||
+		    archive_write_open_filename(archive, path.string().c_str()) != ARCHIVE_OK) {
+			if (archive) {
+				archive_write_free(archive);
+			}
+			throw std::runtime_error("Could not create ZIP test fixture.");
+		}
+
+		auto writeEntry = [&](const char* entryName, std::initializer_list<uint8_t> contents) {
+			struct archive_entry* entry = archive_entry_new();
+			archive_entry_set_pathname(entry, entryName);
+			archive_entry_set_filetype(entry, AE_IFREG);
+			archive_entry_set_perm(entry, 0644);
+			archive_entry_set_size(entry, static_cast<la_int64_t>(contents.size()));
+			const bool failed = archive_write_header(archive, entry) != ARCHIVE_OK ||
+			                    archive_write_data(archive, contents.begin(), contents.size()) != static_cast<la_ssize_t>(contents.size());
+			archive_entry_free(entry);
+			if (failed) {
+				throw std::runtime_error("Could not write ZIP test fixture.");
+			}
+		};
+
+		try {
+			writeEntry("readme.txt", {'o', 'k'});
+			writeEntry("tfs_fl_zip.otbm", bytes);
+		} catch (...) {
+			archive_write_free(archive);
+			throw;
+		}
+		const int closeResult = archive_write_close(archive);
+		const int freeResult = archive_write_free(archive);
+		if (closeResult != ARCHIVE_OK || freeResult != ARCHIVE_OK) {
+			throw std::runtime_error("Could not close ZIP test fixture.");
+		}
+	}
+
+	~TempZipOtbFile()
 	{
 		std::error_code ec;
 		std::filesystem::remove(path, ec);
@@ -209,5 +262,16 @@ TEST_CASE(gzip_otbm_rejects_invalid_stream)
 {
 	TempOtbFile invalid{"tfs_fl_bad_gzip.otbm", {0x1F, 0x8B, 0x08, 0x00, 0x00}};
 	CHECK(loaderRejectsInvalidCompressedInput(invalid.path.string(), TEST_ID));
+}
+
+TEST_CASE(zip_otbm_is_opt_in_and_ignores_auxiliary_entries)
+{
+	TempZipOtbFile compressed{"tfs_fl_zip.otbm.zip", {'T', 'E', 'S', 'T', 0xFE, 0x00, 0x01, 0x02, 0xFF}};
+	CHECK(loaderRejectsCompressedInput(compressed.path.string(), TEST_ID));
+
+	OTB::Loader loader{compressed.path.string(), TEST_ID, true};
+	PropStream props;
+	CHECK(loader.getProps(loader.parseTree(), props));
+	CHECK(readAll(props) == (std::vector<uint8_t>{0x01, 0x02}));
 }
 TFS_TEST_MAIN()

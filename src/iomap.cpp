@@ -149,6 +149,19 @@ bool writeHouseMapCache(OTB::Loader& loader, const OTB::Node& root, const std::f
 	return !error;
 #endif
 }
+
+std::vector<std::filesystem::path> findCompressedMapAlternatives(const std::filesystem::path& mapPath)
+{
+	static constexpr std::array<std::string_view, 11> extensions = {".gz", ".zip", ".rar", ".7z", ".bz2", ".xz", ".lzma", ".lz", ".Z", ".zst", ".lz4"};
+	std::vector<std::filesystem::path> matches;
+	for (const std::string_view extension : extensions) {
+		const std::filesystem::path candidate = mapPath.string() + std::string{extension};
+		if (std::filesystem::is_regular_file(candidate)) {
+			matches.emplace_back(candidate);
+		}
+	}
+	return matches;
+}
 } // namespace
 
 std::unique_ptr<Tile> IOMap::createTile(std::shared_ptr<Item>& ground, Item* item, uint16_t x, uint16_t y, uint8_t z) {
@@ -167,11 +180,22 @@ std::unique_ptr<Tile> IOMap::createTile(std::shared_ptr<Item>& ground, Item* ite
     return tile;
 }
 
-bool IOMap::loadMap(Map* map, const std::filesystem::path& fileName, bool usePersistentCache) {
+bool IOMap::loadMap(Map* map, const std::filesystem::path& requestedFileName, bool usePersistentCache) {
     const auto start = std::chrono::steady_clock::now();
 	const bool reportStartupProgress = startupProgress().isCurrentStage(StartupStage::MAP_DATA);
-    if (!std::filesystem::exists(fileName)) {
-        setLastErrorString(fmt::format("Map file not found at: {}. Please check 'mapName' in config.lua and ensure the file exists in data/world/.", fileName.string()));
+    std::filesystem::path fileName = requestedFileName;
+    if (!std::filesystem::is_regular_file(fileName) && ConfigManager::getBoolean(ConfigManager::ALLOW_COMPRESSED_MAP)) {
+        const auto alternatives = findCompressedMapAlternatives(requestedFileName);
+        if (alternatives.size() == 1) {
+            fileName = alternatives.front();
+            g_logger().info(">> Using compressed map archive '{}'.", fileName.string());
+        } else if (alternatives.size() > 1) {
+            setLastErrorString(fmt::format("Several compressed maps match '{}'; keep only one compressed extension.", requestedFileName.string()));
+            return false;
+        }
+    }
+    if (!std::filesystem::is_regular_file(fileName)) {
+        setLastErrorString(fmt::format("Map file not found at: {}. Please check 'mapName' in config.lua and ensure the file exists in data/world/.", requestedFileName.string()));
         return false;
     }
 	if (reportStartupProgress) {

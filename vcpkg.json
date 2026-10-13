@@ -13,6 +13,7 @@
     "pugixml",
     "spdlog",
     "simdutf",
+    "libarchive",
     "zlib"
   ],
   "features": {

@@ -83,6 +83,7 @@ endif ()
 # Find packages.
 find_package(OpenSSL 3.0.0 REQUIRED COMPONENTS Crypto)
 find_package(ZLIB REQUIRED)
+find_package(LibArchive REQUIRED)
 find_package(absl CONFIG REQUIRED)
 # Find asio (header-only, can be in system path or vcpkg)
 find_package(asio CONFIG QUIET)
@@ -337,7 +338,7 @@ endif ()
 add_subdirectory(src)
 
 add_executable(tfs ${tfs_MAIN})
-target_link_libraries(tfs tfslib ZLIB::ZLIB OpenSSL::Crypto absl::flat_hash_map)
+target_link_libraries(tfs tfslib ZLIB::ZLIB LibArchive::LibArchive OpenSSL::Crypto absl::flat_hash_map)
 
 # Embed the application icon on Windows (rc.exe compiles the .rc -> MAINICON)
 if (WIN32)
