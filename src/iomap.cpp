@@ -230,6 +230,7 @@ bool IOMap::loadMap(Map* map, const std::filesystem::path& fileName, bool usePer
     }
 
     bool wroteHouseCache = false;
+    MapCache::resetMapLoadDiagnostics();
     try {
         OTB::Loader loader{fileName.string(), OTB::Identifier{{'O', 'T', 'B', 'M'}},
                            ConfigManager::getBoolean(ConfigManager::ALLOW_COMPRESSED_MAP)};
@@ -348,6 +349,8 @@ bool IOMap::loadMap(Map* map, const std::filesystem::path& fileName, bool usePer
         setLastErrorString(fmt::format("Failed to open map file [{}]: {}", fileName.string(), err.what()));
         return false;
     }
+
+    MapCache::reportMapLoadDiagnostics(fileName);
 
     if (cacheEnabled && initialFingerprint && wroteHouseCache) {
         const auto finalFingerprint = MapCache::fingerprint(fileName);

@@ -233,6 +233,8 @@ public:
 
     static void prepare(size_t sourceBytes);
     static void resetStore();
+    static void resetMapLoadDiagnostics();
+    static void reportMapLoadDiagnostics(const std::filesystem::path& mapPath);
     static void precomputeFingerprint(const std::filesystem::path& mapPath);
     static std::optional<Fingerprint> fingerprint(const std::filesystem::path& mapPath);
     static std::optional<Digest> digestFile(const std::filesystem::path& path);

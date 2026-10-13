@@ -43,6 +43,20 @@ std::mutex fingerprintMutex;
 std::filesystem::path fingerprintPath;
 std::optional<std::future<std::optional<MapCache::Fingerprint>>> fingerprintFuture;
 
+struct MapLoadDiagnostics {
+    size_t actionIds = 0;
+    size_t uniqueIds = 0;
+    size_t filledContainers = 0;
+};
+
+MapLoadDiagnostics mapLoadDiagnostics;
+
+void noteMapItemAttributes(const BasicItem& item)\r\n{
+    mapLoadDiagnostics.actionIds += item.actionId != 0;
+    mapLoadDiagnostics.uniqueIds += item.uniqueId != 0;
+    mapLoadDiagnostics.filledContainers += !item.items.empty();
+}
+
 class CacheWriter {
 public:
     explicit CacheWriter(const std::filesystem::path& path) : stream(path, std::ios::binary | std::ios::trunc) {}
@@ -173,6 +187,20 @@ bool replaceMapCacheFile(const std::filesystem::path& source, const std::filesys
 #endif
 }
 } // namespace
+
+void MapCache::resetMapLoadDiagnostics()\r\n{
+    mapLoadDiagnostics = {};
+}
+
+void MapCache::reportMapLoadDiagnostics(const std::filesystem::path& mapPath)\r\n{
+    if (mapLoadDiagnostics.actionIds == 0 && mapLoadDiagnostics.uniqueIds == 0 && mapLoadDiagnostics.filledContainers == 0) {
+        return;
+    }
+
+    LOG_WARN(fmt::format(
+        ">> Map '{}' stores {} action id(s), {} unique id(s), and {} filled container(s) in OTBM.",
+        mapPath.filename().string(), mapLoadDiagnostics.actionIds, mapLoadDiagnostics.uniqueIds, mapLoadDiagnostics.filledContainers));
+}
 
 void MapCache::prepare(size_t sourceBytes) {
     // Estimates are deliberately based on the source size instead of map
@@ -873,6 +901,7 @@ std::shared_ptr<BasicItem> MapCache::parseBasicItem(void* loaderptr, const void*
         }
     }
 
+    noteMapItemAttributes(item);
     return tryGetItemFromCache(std::move(item));
 }
 
@@ -941,6 +970,7 @@ const BasicTile* MapCache::parseBasicTile(void* loaderptr, const void* nodeptr, 
                 // Inline item
                 BasicItem item;
                 if (parseBasicItemFromStream(propStream, item)) {
+                     noteMapItemAttributes(item);
                      const ItemType& it = Item::items[item.id];
                      if (it.isGroundTile()) {
                          tile.ground = MapCache::tryGetItemFromCache(std::move(item));
