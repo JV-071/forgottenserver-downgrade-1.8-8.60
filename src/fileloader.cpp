@@ -5,13 +5,87 @@
 
 #include "fileloader.h"
 
+#include <algorithm>
+#include <array>
+#include <limits>
+#include <new>
+#include <zlib.h>
+
 #include <stack>
 
 namespace OTB {
 
 constexpr Identifier wildcard = {{'\0', '\0', '\0', '\0'}};
+namespace {
+constexpr size_t GZIP_BUFFER_SIZE = 1024 * 1024;
+constexpr size_t MAX_DECOMPRESSED_OTB_SIZE = 512 * 1024 * 1024;
 
-Loader::Loader(const std::string& fileName, const Identifier& acceptedIdentifier)
+bool isGzipInput(const char* data, size_t size)
+{
+	return size >= 2 && static_cast<unsigned char>(data[0]) == 0x1F && static_cast<unsigned char>(data[1]) == 0x8B;
+}
+
+bool decompressGzipInput(const char* input, size_t inputSize, std::vector<char>& output)
+{
+	if (inputSize > std::numeric_limits<uInt>::max()) {
+		return false;
+	}
+
+	z_stream stream{};
+	stream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(input));
+	stream.avail_in = static_cast<uInt>(inputSize);
+	if (inflateInit2(&stream, MAX_WBITS + 16) != Z_OK) {
+		return false;
+	}
+
+	// The gzip trailer is only a reservation hint; the hard limit below remains authoritative.
+	if (inputSize >= sizeof(uint32_t)) {
+		uint32_t hintedSize = 0;
+		std::memcpy(&hintedSize, input + inputSize - sizeof(hintedSize), sizeof(hintedSize));
+		if (hintedSize > 0 && hintedSize <= MAX_DECOMPRESSED_OTB_SIZE) {
+			try {
+				output.reserve(hintedSize);
+			} catch (const std::bad_alloc&) {
+				// A malformed hint or memory pressure must not stop the incremental path.
+			}
+		}
+	}
+
+	int result = Z_OK;
+	do {
+		if (output.size() >= MAX_DECOMPRESSED_OTB_SIZE) {
+			inflateEnd(&stream);
+			return false;
+		}
+
+		const size_t offset = output.size();
+		const size_t chunkSize = std::min(GZIP_BUFFER_SIZE, MAX_DECOMPRESSED_OTB_SIZE - offset);
+		try {
+			output.resize(offset + chunkSize);
+		} catch (const std::bad_alloc&) {
+			inflateEnd(&stream);
+			return false;
+		} catch (const std::length_error&) {
+			inflateEnd(&stream);
+			return false;
+		}
+
+		stream.next_out = reinterpret_cast<Bytef*>(output.data() + offset);
+		stream.avail_out = static_cast<uInt>(chunkSize);
+		result = inflate(&stream, Z_NO_FLUSH);
+		output.resize(offset + chunkSize - stream.avail_out);
+		if (result != Z_OK && result != Z_STREAM_END) {
+			inflateEnd(&stream);
+			return false;
+		}
+	} while (result != Z_STREAM_END);
+
+	inflateEnd(&stream);
+	return true;
+}
+} // namespace
+
+Loader::Loader(const std::string& fileName, const Identifier& acceptedIdentifier, bool allowCompressed)
 {
 	std::error_code error;
 	fileContents.map(fileName, error);
@@ -19,18 +93,31 @@ Loader::Loader(const std::string& fileName, const Identifier& acceptedIdentifier
 		throw InvalidOTBFormat{};
 	}
 
+	const char* data = fileContents.data();
+	const size_t size = fileContents.size();
+	compressedInput = isGzipInput(data, size);
+	if (compressedInput) {
+		if (!allowCompressed) {
+			throw CompressedOTBFormat{};
+		}
+		if (!decompressGzipInput(data, size, decompressedContents)) {
+			throw OTBDecompressionError{};
+		}
+		data = decompressedContents.data();
+	}
+
 	constexpr auto minimalSize = sizeof(Identifier) + sizeof(Node::START) + sizeof(Node::type) + sizeof(Node::END);
-	if (fileContents.size() <= minimalSize) {
+	const size_t contentSize = compressedInput ? decompressedContents.size() : size;
+	if (contentSize <= minimalSize) {
 		throw InvalidOTBFormat{};
 	}
 
 	Identifier fileIdentifier;
-	std::copy(fileContents.data(), fileContents.data() + fileIdentifier.size(), fileIdentifier.begin());
+	std::copy(data, data + fileIdentifier.size(), fileIdentifier.begin());
 	if (fileIdentifier != acceptedIdentifier && fileIdentifier != wildcard) {
 		throw InvalidOTBFormat{};
 	}
 }
-
 using NodeStack = std::stack<Node*, std::vector<Node*>>;
 static Node& getCurrentNode(const NodeStack& nodeStack)
 {
@@ -42,8 +129,10 @@ static Node& getCurrentNode(const NodeStack& nodeStack)
 
 const Node& Loader::parseTree()
 {
-	const auto contentEnd = fileContents.data() + fileContents.size();
-	auto it = fileContents.data() + sizeof(Identifier);
+	const char* data = compressedInput ? decompressedContents.data() : fileContents.data();
+	const size_t size = compressedInput ? decompressedContents.size() : fileContents.size();
+	const auto contentEnd = data + size;
+	auto it = data + sizeof(Identifier);
 	if (static_cast<uint8_t>(*it) != Node::START) {
 		throw InvalidOTBFormat{};
 	}

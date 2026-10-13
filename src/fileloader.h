@@ -37,14 +37,26 @@ struct InvalidOTBFormat final : LoadError
 	const char* what() const noexcept override { return "Invalid OTBM file format"; }
 };
 
+struct CompressedOTBFormat final : LoadError
+{
+	const char* what() const noexcept override { return "Compressed OTBM input is disabled"; }
+};
+
+struct OTBDecompressionError final : LoadError
+{
+	const char* what() const noexcept override { return "Could not decompress OTBM input"; }
+};
+
 class Loader
 {
 	MappedFile fileContents;
+	std::vector<char> decompressedContents;
+	bool compressedInput = false;
 	Node root;
 	std::vector<char> propBuffer;
 
 public:
-	Loader(const std::string& fileName, const Identifier& acceptedIdentifier);
+	Loader(const std::string& fileName, const Identifier& acceptedIdentifier, bool allowCompressed = false);
 	bool getProps(const Node& node, PropStream& props);
 	const Node& parseTree();
 };

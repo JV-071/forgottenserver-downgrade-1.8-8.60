@@ -231,7 +231,8 @@ bool IOMap::loadMap(Map* map, const std::filesystem::path& fileName, bool usePer
 
     bool wroteHouseCache = false;
     try {
-        OTB::Loader loader{fileName.string(), OTB::Identifier{{'O', 'T', 'B', 'M'}}};
+        OTB::Loader loader{fileName.string(), OTB::Identifier{{'O', 'T', 'B', 'M'}},
+                           ConfigManager::getBoolean(ConfigManager::ALLOW_COMPRESSED_MAP)};
         const auto treeStart = std::chrono::steady_clock::now();
         auto& root = loader.parseTree();
         const auto treeEnd = std::chrono::steady_clock::now();

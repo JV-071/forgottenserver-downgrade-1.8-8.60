@@ -6,6 +6,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <zlib.h>
 
 namespace {
 
@@ -29,6 +30,35 @@ struct TempOtbFile
 	}
 };
 
+struct TempGzipOtbFile
+{
+	std::filesystem::path path;
+
+	TempGzipOtbFile(const char* name, std::initializer_list<uint8_t> bytes) :
+	    path{std::filesystem::temp_directory_path() / name}
+	{
+		gzFile output = gzopen(path.string().c_str(), "wb");
+		if (!output) {
+			throw std::runtime_error("Could not create gzip test fixture.");
+		}
+		for (uint8_t byte : bytes) {
+			if (gzputc(output, byte) == -1) {
+				gzclose(output);
+				throw std::runtime_error("Could not write gzip test fixture.");
+			}
+		}
+		if (gzclose(output) != Z_OK) {
+			throw std::runtime_error("Could not close gzip test fixture.");
+		}
+	}
+
+	~TempGzipOtbFile()
+	{
+		std::error_code ec;
+		std::filesystem::remove(path, ec);
+	}
+};
+
 constexpr OTB::Identifier TEST_ID = {{'T', 'E', 'S', 'T'}};
 
 std::vector<uint8_t> readAll(PropStream& props)
@@ -46,6 +76,16 @@ bool loaderThrows(const std::string& file, const OTB::Identifier& id)
 	try {
 		OTB::Loader loader{file, id};
 	} catch (const OTB::InvalidOTBFormat&) {
+		return true;
+	}
+	return false;
+}
+
+bool loaderRejectsCompressedInput(const std::string& file, const OTB::Identifier& id)
+{
+	try {
+		OTB::Loader loader{file, id};
+	} catch (const OTB::CompressedOTBFormat&) {
 		return true;
 	}
 	return false;
@@ -143,6 +183,17 @@ TEST_CASE(identifier_wildcard_and_rejection)
 	CHECK(loaderThrows(bad.path.string(), TEST_ID));
 	TempOtbFile tiny{"tfs_fl_tiny.otb", {'T', 'E', 'S', 'T', 0xFE, 0x00, 0xFF}}; // 7 bytes == minimalSize -> reject
 	CHECK(loaderThrows(tiny.path.string(), TEST_ID));
+}
+
+TEST_CASE(gzip_otbm_is_opt_in_and_preserves_properties)
+{
+	TempGzipOtbFile compressed{"tfs_fl_gzip.otbm", {'T', 'E', 'S', 'T', 0xFE, 0x00, 0x01, 0x02, 0xFF}};
+	CHECK(loaderRejectsCompressedInput(compressed.path.string(), TEST_ID));
+
+	OTB::Loader loader{compressed.path.string(), TEST_ID, true};
+	PropStream props;
+	CHECK(loader.getProps(loader.parseTree(), props));
+	CHECK(readAll(props) == (std::vector<uint8_t>{0x01, 0x02}));
 }
 
 TFS_TEST_MAIN()
