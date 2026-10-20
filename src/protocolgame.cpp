@@ -1186,6 +1186,8 @@ void ProtocolGame::onRecvFirstMessage(NetworkMessage& msg)
 					    (capabilities & AstraClient::BestiaryBannerCreatureData) != 0;
 					supportsAstraExtendedSpellIds =
 					    (capabilities & AstraClient::ExtendedSpellIds) != 0;
+					supportsAstraShopBuyAmountU16 =
+					    (capabilities & AstraClient::ShopBuyAmountU16) != 0;
 				} else if (marker == AstraClient::STORE_HIGHLIGHTS_MARKER) {
 					supportsGameStoreHighlights = isAstraClient;
 				} else if (marker == AstraClient::SINGLE_CREATURE_MARKS_MARKER) {
@@ -2883,7 +2885,9 @@ void ProtocolGame::parsePlayerPurchase(NetworkMessage& msg)
 {
 	uint16_t id = msg.get<uint16_t>();
 	uint8_t count = msg.getByte();
-	uint16_t amount = (isAstraClient || isFonticakClient) ? msg.get<uint16_t>() : msg.getByte();
+	const uint16_t amount = (isFonticakClient || supportsAstraShopBuyAmountU16)
+	                            ? msg.get<uint16_t>()
+	                            : msg.getByte();
 	bool ignoreCap = msg.getByte() != 0;
 	bool inBackpacks = msg.getByte() != 0;
 	g_game.playerPurchaseItem(player->getID(), id, count, amount, ignoreCap, inBackpacks);
@@ -3966,7 +3970,14 @@ void ProtocolGame::sendSaleItemList(const std::list<ShopInfo>& shop)
 	uint8_t i = 0;
 	for (auto it = saleMap.begin(); i < itemsToSend; ++it, ++i) {
 		msg.addItemId(it->first);
-		msg.addByte(static_cast<uint8_t>(std::min<uint32_t>(it->second, std::numeric_limits<uint8_t>::max())));
+		if (isAstraClient || isFonticakClient) {
+			const auto amount = static_cast<uint16_t>(
+			    std::min<uint32_t>(it->second, std::numeric_limits<uint16_t>::max()));
+			msg.add<uint16_t>(amount);
+		} else {
+			msg.addByte(static_cast<uint8_t>(
+			    std::min<uint32_t>(it->second, std::numeric_limits<uint8_t>::max())));
+		}
 	}
 
 	writeToOutputBuffer(msg);
@@ -4368,6 +4379,7 @@ void ProtocolGame::sendStoreCatalog()
 	};
 
 	const bool isAstra = isAstraClient;
+	const bool taskBoardStoreClient = isAstra || isFonticakClient;
 	const bool sendHighlights = supportsGameStoreHighlights;
 	const auto nowSeconds = std::chrono::duration_cast<std::chrono::seconds>(
 	    std::chrono::system_clock::now().time_since_epoch()).count();
@@ -4401,12 +4413,12 @@ void ProtocolGame::sendStoreCatalog()
 			bool visible = true;
 			switch (offer.type) {
 				case StoreOfferType::BountyKillBoost:
-					visible = isAstra && bountyEnabled;
+					visible = taskBoardStoreClient && bountyEnabled;
 					break;
 				case StoreOfferType::WeeklyKillBoost:
 				case StoreOfferType::WeeklyReducedItems:
 				case StoreOfferType::WeeklyTaskExpansion:
-					visible = isAstra && weeklyEnabled;
+					visible = taskBoardStoreClient && weeklyEnabled;
 					break;
 				case StoreOfferType::BattlePass:
 					visible = battlePassEnabled;
@@ -6660,6 +6672,9 @@ void ProtocolGame::sendFeatures(bool advertiseAstraItemState)
 		features[GameFeature::AstraOutfitStoreMode] = true;
 		features[GameFeature::AstraShopCountU16] = true;
 		features[GameFeature::DoubleShopSellAmount] = true;
+		if (supportsAstraShopBuyAmountU16) {
+			features[GameFeature::AstraShopBuyAmountU16] = true;
+		}
 		if (supportsAstraStoreBasePrice) {
 			features[GameFeature::AstraStoreBasePrice] = true;
 		}
