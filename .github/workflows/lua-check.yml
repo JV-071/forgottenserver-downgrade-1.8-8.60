@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/lua-check.yml"
       - ".github/tests/npc_travel_keywords.lua"
+      - ".github/tests/market_save_regressions.lua"
       - ".github/tests/npc_conversation_timeout.lua"
       - ".github/tests/bestiary_kill_cache.lua"
       - "config.lua.dist"
@@ -20,6 +21,7 @@ on:
     paths:
       - ".github/workflows/lua-check.yml"
       - ".github/tests/npc_travel_keywords.lua"
+      - ".github/tests/market_save_regressions.lua"
       - ".github/tests/npc_conversation_timeout.lua"
       - ".github/tests/bestiary_kill_cache.lua"
       - "config.lua.dist"
@@ -55,6 +57,9 @@ jobs:
         run: |
           luac5.4 -p config.lua.dist
           find data/ -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac5.4 -p
+
+      - name: Test Market payment and single scheduled save
+        run: lua5.4 .github/tests/market_save_regressions.lua
 
       - name: Test NPC travel keyword and equipped-item policy
         run: |
