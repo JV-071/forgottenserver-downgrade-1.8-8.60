@@ -261,6 +261,8 @@ public:
 	void removeList() override;
 	void addList() override;
 	void kickPlayer(bool displayEffect);
+	void disconnectForPersistenceFailure();
+	bool isPersistenceQuarantined() const { return persistenceQuarantined; }
 
 	static uint64_t getExpForLevel(const uint64_t lv)
 	{
@@ -660,6 +662,12 @@ public:
 	uint64_t getExperience() const { return experience; }
 
 	time_t getLastLoginSaved() const { return lastLoginSaved; }
+	uint64_t getOnlineTimeAt(time_t now) const
+	{
+		const uint64_t elapsed = onlineTimeSessionStart && now > onlineTimeSessionStart ?
+		    static_cast<uint64_t>(now - onlineTimeSessionStart) : 0;
+		return elapsed > UINT64_MAX - onlineTimeAtLogin ? UINT64_MAX : onlineTimeAtLogin + elapsed;
+	}
 
 	time_t getLastLogout() const { return lastLogout; }
 
@@ -1427,6 +1435,11 @@ public:
 	}
 	void sendPing();
 	void sendStats();
+	void refreshInventoryStats()
+	{
+		updateInventoryWeight();
+		sendStats();
+	}
 	void sendBasicData() const
 	{
 		if (client) {
@@ -1837,6 +1850,10 @@ private:
 	std::map<ObjectCategory_t, ManagedLootContainer> managedLootContainers;
 
 	time_t lastLoginSaved = 0;
+	time_t onlineTimeSessionStart = 0;
+	uint64_t onlineTimeAtLogin = 0;
+	bool persistenceQuarantined = false;
+	bool removalInProgress = false;
 	time_t lastLogout = 0;
 	time_t premiumEndsAt = 0;
 
@@ -2063,6 +2080,7 @@ private:
 	friend class ProtocolSpectator;
 	friend struct CreatureWalkTestAccess;
 	friend struct QuickLootTestAccess;
+	friend struct PlayerOnlineTimeTestAccess;
 };
 
 #endif
