@@ -4089,6 +4089,19 @@ uint64_t Player::getAttackSpeedBeforeEquipmentBonus() const
 	if (resetAttackSpeedBonus > 0 && baseSpeed > static_cast<uint32_t>(resetAttackSpeedBonus)) {
 		baseSpeed -= static_cast<uint32_t>(resetAttackSpeedBonus);
 	}
+	if (getBoolean(ConfigManager::FIST_ATTACK_SPEED_ENABLED)) {
+		uint16_t fistSkill = getSkillLevel(SKILL_FIST);
+		if (fistSkill > 10) {
+			uint32_t msPerSkill = std::max<uint32_t>(1, getInteger(ConfigManager::FIST_ATTACK_SPEED_MS_PER_SKILL));
+			uint32_t minInterval = std::max<uint32_t>(50, getInteger(ConfigManager::FIST_ATTACK_SPEED_MIN_INTERVAL));
+			uint64_t reduction = static_cast<uint64_t>(fistSkill - 10) * msPerSkill;
+			if (baseSpeed > minInterval + reduction) {
+				baseSpeed -= reduction;
+			} else {
+				baseSpeed = minInterval;
+			}
+		}
+	}
 	if (isDualWielding()) {
 		const auto rate = getInteger(ConfigManager::DUAL_WIELDING_SPEED_RATE);
 		if (rate > 0) {

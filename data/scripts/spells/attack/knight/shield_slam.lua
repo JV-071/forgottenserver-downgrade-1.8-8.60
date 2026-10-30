@@ -48,9 +48,10 @@ function onGetFormulaValues(player, skill, attack, factor)
 	local defense = castShieldDefense
 
 	-- Damage scales with shield defense + shielding skill, on top of the base power.
-	local min = (level / 5) + BASE_POWER + (defense * 1.4) + (shieldingSkill * 0.55)
-	local max = (level / 5) + BASE_POWER + (defense * 2.3) + (shieldingSkill * 0.95)
-	return -min, -max
+	local baseDamage = (level / 5) + BASE_POWER + (shieldingSkill * 2.5) + (defense * 1.2)
+	local min = baseDamage * 0.90
+	local max = baseDamage * 1.35
+	return -math.floor(min), -math.floor(max)
 end
 
 combat:setCallback(CALLBACK_PARAM_SKILLVALUE, "onGetFormulaValues")

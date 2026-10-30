@@ -5,18 +5,8 @@ combat:setParameter(COMBAT_PARAM_BLOCKARMOR, true)
 combat:setParameter(COMBAT_PARAM_USECHARGES, true)
 combat:setArea(createCombatArea(AREA_WAVE6, AREADIAGONAL_WAVE6))
 
-local function calculateBaseDamageHealing(level)
-	local step = math.floor((math.sqrt(2 * level + 2025) + 5) / 10)
-	return math.floor((level + 1000) / step) + 50 * step - 450
-end
-
 local function callback(player, skill, attack, factor)
-	local skillTotal = skill * attack
-	local levelTotal = calculateBaseDamageHealing(player:getLevel())
-	local baseScale = 80 / 72
-	local min = (((skillTotal * 0.04) + 31) + levelTotal) * 1.1 * baseScale
-	local max = (((skillTotal * 0.08) + 45) + levelTotal) * 1.1 * baseScale
-	return -min, -max
+	return calculateCombatScalingDamage(player, skill, attack, 1.10, 1.65)
 end
 
 combat:setCallback(CallBackParam.SKILLVALUE, callback)

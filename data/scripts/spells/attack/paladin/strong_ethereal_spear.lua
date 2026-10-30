@@ -5,8 +5,8 @@ combat:setParameter(COMBAT_PARAM_DISTANCEEFFECT, CONST_ANI_ETHEREALSPEAR)
 combat:setParameter(COMBAT_PARAM_BLOCKARMOR, 1)
 
 function onGetFormulaValues(player, skill, attack, factor)
-	local levelTotal = calculateBaseDamageHealing(player:getLevel())
-	return -(((2 * skill + attack / 2500) * 2.30) + levelTotal + 7), -(((2 * skill + attack / 1875) * 3.30) + levelTotal + 13)
+	local distanceSkill = player:getEffectiveSkillLevel(SKILL_DISTANCE)
+	return calculateCombatScalingDamage(player, distanceSkill, attack, 1.30, 1.85)
 end
 
 combat:setCallback(CALLBACK_PARAM_SKILLVALUE, "onGetFormulaValues")

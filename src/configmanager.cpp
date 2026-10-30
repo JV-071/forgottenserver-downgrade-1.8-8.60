@@ -467,6 +467,7 @@ bool ConfigManager::load()
 	booleans[Boolean::DEFAULT_HEALTH_DISPLAY_PERCENT] =
 	    asLowerCaseString(getGlobalString(L, "defaultHealthDisplay", "real")) == "percent";
 	booleans[Boolean::ALLOW_DUAL_WIELDING] = getGlobalBoolean(L, "allowDualWielding", false);
+	booleans[Boolean::FIST_ATTACK_SPEED_ENABLED] = getGlobalBoolean(L, "fistAttackSpeedEnabled", true);
 	booleans[Boolean::RAID_SPAWN_FILE_ENABLED] = getGlobalBoolean(L, "raidSpawnFileEnabled", true);
 	booleans[Boolean::POWERLAW] = getGlobalBoolean(L, "powerlaw", false);
 	booleans[Boolean::ASTRA_CLIENT_ONLY] = getGlobalBoolean(L, "astraClientOnly", false);
@@ -772,6 +773,8 @@ bool ConfigManager::load()
 	integers[Integer::COMBAT_CHAIN_TARGETS] = getGlobalInteger(L, "combatChainTargets", 5);
 	integers[Integer::DUAL_WIELDING_SPEED_RATE] = getGlobalInteger(L, "dualWieldingSpeedRate", 200);
 	integers[Integer::DUAL_WIELDING_DAMAGE_RATE] = getGlobalInteger(L, "dualWieldingDamageRate", 60);
+	integers[Integer::FIST_ATTACK_SPEED_MS_PER_SKILL] = getGlobalInteger(L, "fistAttackSpeedMsPerSkill", 1);
+	integers[Integer::FIST_ATTACK_SPEED_MIN_INTERVAL] = getGlobalInteger(L, "fistAttackSpeedMinInterval", 100);
 	booleans[Boolean::GUILD_WAR_ANNOUNCE_KILLS] = getGlobalBoolean(L, "guildWarAnnounceKills", true);
 
 	// Raid Spawn Config

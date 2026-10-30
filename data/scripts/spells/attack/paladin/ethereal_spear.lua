@@ -6,16 +6,13 @@ combat:setParameter(COMBAT_PARAM_BLOCKARMOR, true)
 
 local function callback(player, skill, attack, factor)
 	local distanceSkill = player:getEffectiveSkillLevel(SKILL_DISTANCE)
-	local min = (player:getLevel() / 5) + distanceSkill * 0.7
-	local max = (player:getLevel() / 5) + distanceSkill + 5
-	return -min, -max
+	return calculateCombatScalingDamage(player, distanceSkill, attack, 0.70, 1.05)
 end
 
 combat:setCallback(CallBackParam.SKILLVALUE, callback)
 
 local spell = Spell("instant")
 function spell.onCastSpell(creature, variant) return combat:execute(creature, variant) end
-
 
 spell:group("attack")
 spell:id(108)

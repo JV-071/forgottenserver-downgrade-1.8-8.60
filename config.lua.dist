@@ -463,6 +463,14 @@ playerMinSpeed = 120
 playerMaxSpeed = 900
 maxGodSpeed = 5000
 
+-- Fist Fighting Attack Speed
+-- fistAttackSpeedEnabled: if true, training fist increases attack speed (lowers attack interval)
+-- fistAttackSpeedMsPerSkill: milliseconds reduced per fist point above 10
+-- fistAttackSpeedMinInterval: lowest attack interval allowed in milliseconds
+fistAttackSpeedEnabled = true
+fistAttackSpeedMsPerSkill = 1
+fistAttackSpeedMinInterval = 100
+
 -- Spawn Start Effect & Timer
 -- Placing true makes it take effect when the monster is about to reappear.
 -- timeStartEffect = Effect time that it will do when this point reappears.

@@ -6,16 +6,13 @@ combat:setParameter(COMBAT_PARAM_BLOCKARMOR, true)
 combat:setParameter(COMBAT_PARAM_USECHARGES, true)
 
 local function callback(player, skill, attack, factor)
-	local min = (player:getLevel() / 5) + (skill * attack * 0.01) + 1
-	local max = (player:getLevel() / 5) + (skill * attack * 0.03) + 6
-	return -min, -max
+	return calculateCombatScalingDamage(player, skill, attack, 0.60, 0.90)
 end
 
 combat:setCallback(CallBackParam.SKILLVALUE, callback)
 
 local spell = Spell("instant")
 function spell.onCastSpell(creature, variant) return combat:execute(creature, variant) end
-
 
 spell:group("attack")
 spell:id(120)

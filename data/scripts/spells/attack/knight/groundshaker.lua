@@ -6,10 +6,7 @@ combat:setParameter(COMBAT_PARAM_USECHARGES, 1)
 combat:setArea(createCombatArea(AREA_CIRCLE3X3))
 
 function onGetFormulaValues(player, skill, attack, factor)
-	local level = player:getLevel()
-	local min = (level / 5) + (skill + attack) * 0.5
-	local max = (level / 5) + (skill + attack) * 1.1
-	return -min * 1.28, -max * 1.28 -- TODO : Use New Real Formula instead of an %
+	return calculateCombatScalingDamage(player, skill, attack, 0.90, 1.35)
 end
 
 combat:setCallback(CALLBACK_PARAM_SKILLVALUE, "onGetFormulaValues")
@@ -26,7 +23,7 @@ spell:name("Groundshaker")
 spell:words("exori mas")
 spell:castSound(SOUND_EFFECT_TYPE_SPELL_GROUNDSHAKER)
 spell:level(33)
-spell:mana(200) -- Phase A rebalance: 160 -> 200
+spell:mana(200)
 spell:isPremium(true)
 spell:needWeapon(true)
 spell:cooldown(8 * 1000)
