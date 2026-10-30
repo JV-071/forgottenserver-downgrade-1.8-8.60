@@ -1,44 +1,30 @@
 # Guia de Balanceamento de Combate & Velocidade de Ataque (Fist Fighting)
 
-Este documento foi elaborado para detalhar todas as implementações, regras matemáticas e mecânicas desenvolvidas para o servidor **The Forgotten Server (TFS 1.8 - 8.60 Downgrade)**, a partir das diretrizes de balanceamento:
+Este documento detalha as implementações, regras matemáticas e mecânicas desenvolvidas para o servidor **The Forgotten Server (TFS 1.8 - 8.60 Downgrade)**:
 > *"2.5 as spells por skills"*, *"0.5 magia"*, *"0.2 itens"*, *"escalonamento"* e *"ao treinar skill de fist, aumentar a velocidade de ataque"*.
 
 ---
 
 ## 📌 Sumário
-1. [Conceitos Fundamentais & Esclarecimentos](#1-conceitos-fundamentais--esclarecimentos)
-2. [Sistema de Escalonamento Global de Dano (Combat Scaling)](#2-sistema-de-escalonamento-global-de-dano-combat-scaling)
+1. [Sistema de Escalonamento Global de Dano (Combat Scaling)](#1-sistema-de-escalonamento-global-de-dano-combat-scaling)
    - [Fórmula Ponderada](#fórmula-ponderada)
    - [Arquivo Central de Configuração](#arquivo-central-de-configuração)
    - [Spells Atualizadas](#spells-atualizadas)
-3. [Sistema de Attack Speed por Treino de Fist Fighting](#3-sistema-de-attack-speed-por-treino-de-fist-fighting)
+2. [Sistema de Attack Speed por Treino de Fist Fighting](#2-sistema-de-attack-speed-por-treino-de-fist-fighting)
    - [Como Funciona](#como-funciona)
    - [Implementação Híbrida (C++ Core + Lua)](#implementação-híbrida-c-core--lua)
    - [Parâmetros Configuráveis no config.lua](#parâmetros-configuráveis-no-configlua)
    - [Simulação de Evolução de Velocidade](#simulação-de-evolução-de-velocidade)
-4. [A Skill Shielding & Defesa para Todas as Vocações](#4-a-skill-shielding--defesa-para-todas-as-vocações)
-5. [Guia de Operação, Comandos de Reload e Boas Práticas](#5-guia-de-operação-comandos-de-reload-e-boas-práticas)
-6. [Controle de Versão (Git Branch & GitHub Actions)](#6-controle-de-versão-git-branch--github-actions)
+3. [A Skill Shielding & Defesa para Todas as Vocações](#3-a-skill-shielding--defesa-para-todas-as-vocações)
+4. [Configuração de Comportamento de Ataque (classicAttackSpeed)](#4-configuração-de-comportamento-de-ataque-classicattackspeed)
+5. [Controle de Versão (Git Branch & GitHub Actions)](#5-controle-de-versão-git-branch--github-actions)
 
 ---
 
-## 1. Conceitos Fundamentais & Esclarecimentos
-
-### O que significa "Escalonamento" (*Scaling*)?
-Escalonamento é o método de design onde o poder das habilidades não é estático, mas cresce progressivamente conforme o jogador aprimora os atributos do seu personagem. Em vez de depender apenas de um stat apelativo (por exemplo, apenas uma arma com ataque alto ou apenas nível alto), a fórmula combina múltiplos aspectos do personagem de forma ponderada.
-
-### Ponto Decimal (`2.5`, `0.2`) vs Vírgula (`0,2`)
-* **No bate-papo informal:** O uso de ponto ou vírgula foi apenas costume de digitação (no português utiliza-se vírgula, mas no teclado numérico do computador usa-se ponto).
-* **Nos arquivos do servidor (Lua, C++, XML):** **O PONTO (`.`) É O ÚNICO SEPARADOR DECIMAL VÁLIDO.**
-  * Em Lua e C++, a vírgula é um separador de argumentos de funções ou itens de listas.
-  * Escrever `local x = 0,2` gerará erro de sintaxe ou atribuirá valores incorretos. Portanto, no código sempre use `2.5`, `0.5`, `0.2`.
-
----
-
-## 2. Sistema de Escalonamento Global de Dano (Combat Scaling)
+## 1. Sistema de Escalonamento Global de Dano (Combat Scaling)
 
 ### Fórmula Ponderada
-A regra solicitada estabeleceu o peso dos atributos no cálculo base do dano:
+A regra estabelece o peso dos atributos no cálculo base do dano:
 * **`Skill * 2.5`**: Para cada ponto de Skill de combate (Sword, Axe, Club, Distance, Fist ou Shielding), soma-se **2.5 de dano base**.
 * **`MagicLevel * 0.5`**: Para cada nível mágico (ML), soma-se **0.5 de dano base**.
 * **`ItemAttack * 0.2`**: O ataque da arma equipada contribui com **0.2 (20%)** do seu valor.
@@ -73,7 +59,7 @@ CombatScalingConfig = {
     globalDamageMultiplier = 1.0 -- Ajuste fino global
 }
 ```
-> **Como alterar:** Se você quiser testar os skills com peso `3.0` ou itens com peso `0.3`, altere apenas os números em `combat_scaling.lua` e dê `/reload scripts` no jogo! Todas as magias se ajustam automaticamente.
+> **Como calibrar:** Se quiser testar os skills com peso `3.0` ou itens com peso `0.3`, altere apenas os números em `combat_scaling.lua` e use `/reload scripts` no jogo. Todas as magias se ajustam automaticamente.
 
 ### Spells Atualizadas
 As seguintes magias foram migradas para o novo escalonamento:
@@ -94,7 +80,7 @@ As seguintes magias foram migradas para o novo escalonamento:
 
 ---
 
-## 3. Sistema de Attack Speed por Treino de Fist Fighting
+## 2. Sistema de Attack Speed por Treino de Fist Fighting
 
 ### Como Funciona
 * No Tibia, a velocidade de ataque é medida em **milissegundos entre cada golpe** (`attackSpeed`).
@@ -102,7 +88,6 @@ As seguintes magias foram migradas para o novo escalonamento:
 * Ao criar o personagem (Fist 10), ele começa na velocidade base da sua vocação (ex: 250 ms em `vocations.xml`). Conforme treina Fist Fighting, o intervalo diminui de forma contínua e automática.
 
 ### Implementação Híbrida (C++ Core + Lua)
-A melhor prática de arquitetura para servidores de alta performance foi adotada:
 1. **O Cálculo Matemático é feito no C++ (Source):**
    * Local: `src/player.cpp` na função `Player::getAttackSpeedBeforeEquipmentBonus()`.
    * **Vantagens:** Executa em $O(1)$ sem lag de scripts; reconhece instantaneamente se o jogador equipar um anel que dê Fist, receber bônus temporário, morrer ou resetar.
@@ -137,7 +122,7 @@ Considerando o valor base padrão de `250 ms` em `vocations.xml`:
 
 ---
 
-## 4. A Skill Shielding & Defesa para Todas as Vocações
+## 3. A Skill Shielding & Defesa para Todas as Vocações
 
 ### Todas as vocações se beneficiam de Shielding?
 **Sim!** No motor do TFS:
@@ -147,27 +132,15 @@ Considerando o valor base padrão de `250 ms` em `vocations.xml`:
 
 ---
 
-## 5. Guia de Operação, Comandos de Reload e Boas Práticas
+## 4. Configuração de Comportamento de Ataque (classicAttackSpeed)
 
-### Por que `/reload vocations` não existe?
-As estruturas de vocações em `data/XML/vocations.xml` são carregadas na memória estática do TFS durante a inicialização. Recarregar vocações com jogadores conectados poderia corromper ponteiros de memória. 
-* **Regra de ouro:** Sempre que alterar atributos em `vocations.xml` (como o `attackspeed="250"` das vocações), **salve o arquivo e reinicie o executável do servidor**.
-
-### Comandos de Reload Disponíveis no Jogo:
-Com o personagem GOD, você pode recarregar modificações em tempo real:
-* `/reload scripts`: Recarrega tudo em `data/scripts` (novos escalonamentos, talkactions, creaturescripts).
-* `/reload spells`: Recarrega todas as magias.
-* `/reload items`: Recarrega atributos de `items.xml` e `items.otb`.
-* `/reload monsters`: Recarrega arquivos de monstros.
-* `/reload all`: Executa todos os reloads acima de uma só vez.
-
-### O que é o `classicAttackSpeed` no `config.lua`?
+No arquivo `config.lua`, você pode configurar a interação entre o auto-ataque e o uso de outros itens/magias:
 * `classicAttackSpeed = true`: O ataque automático da arma é totalmente independente de poções ou magias (jogabilidade rápida e fluida de OTServer clássico).
 * `classicAttackSpeed = false`: O ataque da arma respeita a fila de exaustão do personagem (usar poções ou itens pode atrasar ligeiramente o golpe da arma).
 
 ---
 
-## 6. Controle de Versão (Git Branch & GitHub Actions)
+## 5. Controle de Versão (Git Branch & GitHub Actions)
 
 Para proteger a integridade do servidor:
 * A branch `main` foi mantida intacta e protegida.
@@ -177,4 +150,4 @@ Para proteger a integridade do servidor:
 ### Repositório Remoto:
 * Repositório: [`https://github.com/JV-071/forgottenserver-downgrade-1.8-8.60`](https://github.com/JV-071/forgottenserver-downgrade-1.8-8.60)
 * Branch: `feat/combat-scaling-and-fist-speed`
-* Compilação contínua (GitHub Actions): Os workflows para **Linux (Ubuntu/GCC)**, **Linux (Clang)** e **Windows (vcpkg)** foram disparados e podem ser inspecionados diretamente na aba *Actions* do repositório.
+* Compilação contínua (GitHub Actions): Os workflows para **Linux (Ubuntu/GCC)**, **Linux (Clang)** e **Windows (vcpkg)** são acionados automaticamente a cada atualização na branch.
