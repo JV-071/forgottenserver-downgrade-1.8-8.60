@@ -64,7 +64,7 @@ function checkNpcShopBuyExhaust(player, delayMs)
 
 	local key = getNpcShopPlayerKey(player)
 	if (npcShopExhaust[key] or 0) > now then
-		player:sendCancelMessage(NPC_SHOP_EXHAUST_MESSAGE)
+		player:sendCancelMessage(NpcLang and NpcLang.t(player, NPC_SHOP_EXHAUST_MESSAGE) or NPC_SHOP_EXHAUST_MESSAGE)
 		return false
 	end
 
@@ -1394,3 +1394,6 @@ do
 		FEYRIST = 18,
 	}
 end
+
+-- NPCs no idioma do cliente (06/11/2026): traducao das falas + palavras-chave em portugues.
+dofile("data/npc/lib/npc_lang.lua")

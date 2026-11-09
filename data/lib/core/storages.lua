@@ -26,6 +26,7 @@ PlayerStorageKeys = {
     expColor = 50100,
     healthDisplay = 50101,
     emoteSpells = 50102,
+    clientLanguage = 50103, -- idioma do client (pt/en) p/ os NPCs, 06/11/2026
     taskBoardBountyKillBoostUntil = 50200,
     taskBoardWeeklyKillBoostUntil = 50201,
     taskBoardWeeklyReducedItemsUntil = 50202,

@@ -8,15 +8,25 @@ function loginMessage.onLogin(player)
             rewardContainerCount = rewardContainerCount + 1
         end
     end
+    -- 06/11/2026: mensagens em portugues por padrao; ingles so se o client avisou "en"
+    -- (storage 50103 = 1). O idioma chega pelo opcode estendido 1 DEPOIS deste onLogin,
+    -- entao no 1o login ainda nao ha valor salvo -> portugues (jogadores brasileiros).
+    local pt = player:getStorageValue(50103) ~= 1
     if rewardContainerCount > 0 then
-        player:sendTextMessage(MESSAGE_STATUS_DEFAULT, string.format("You have %d reward%s in your reward chest.", rewardContainerCount, rewardContainerCount > 1 and "s" or ""))
+        if pt then
+            player:sendTextMessage(MESSAGE_STATUS_DEFAULT, string.format("Você tem %d recompensa%s no seu baú de recompensas.", rewardContainerCount, rewardContainerCount > 1 and "s" or ""))
+        else
+            player:sendTextMessage(MESSAGE_STATUS_DEFAULT, string.format("You have %d reward%s in your reward chest.", rewardContainerCount, rewardContainerCount > 1 and "s" or ""))
+        end
     end
 
     local serverName = configManager.getString(configKeys.SERVER_NAME)
-    local loginStr = "Welcome to " .. serverName .. "!"
+    local loginStr = pt and ("Bem-vindo ao " .. serverName .. "!") or ("Welcome to " .. serverName .. "!")
     if player:getLastLoginSaved() <= 0 then
-        loginStr = loginStr .. " Please choose your outfit."
+        loginStr = loginStr .. (pt and " Escolha a sua roupa." or " Please choose your outfit.")
         player:sendOutfitWindow()
+    elseif pt then
+        loginStr = string.format("Sua última visita ao %s: %s.", serverName, os.date("%d/%m/%Y %H:%M:%S", player:getLastLoginSaved()))
     else
         loginStr = string.format("Your last visit in %s: %s.", serverName, os.date("%d %b %Y %X", player:getLastLoginSaved()))
     end
@@ -48,11 +58,16 @@ function loginMessage.onLogin(player)
 
     if player:isTokenProtected() then
         player:setTokenLocked(true)
-        player:popupFYI("=== TOKEN PROTECTION ===\n\nYour account is protected by TOKEN.\n\nYou cannot move or drop items until you unlock.\n\nType: !token <your_password>\n\nto unlock your character.")
-        player:sendTextMessage(MESSAGE_STATUS_CONSOLE_RED, "[Token] You are LOCKED! Type !token <password> to unlock.")
+        if pt then
+            player:popupFYI("=== PROTEÇÃO POR TOKEN ===\n\nSua conta está protegida por TOKEN.\n\nVocê não pode mover nem jogar itens até desbloquear.\n\nDigite: !token <sua_senha>\n\npara desbloquear o personagem.")
+            player:sendTextMessage(MESSAGE_STATUS_CONSOLE_RED, "[Token] Você está BLOQUEADO! Digite !token <senha> para desbloquear.")
+        else
+            player:popupFYI("=== TOKEN PROTECTION ===\n\nYour account is protected by TOKEN.\n\nYou cannot move or drop items until you unlock.\n\nType: !token <your_password>\n\nto unlock your character.")
+            player:sendTextMessage(MESSAGE_STATUS_CONSOLE_RED, "[Token] You are LOCKED! Type !token <password> to unlock.")
+        end
     end
 
-    player:sendTextMessage(MESSAGE_STATUS_DEFAULT, "[Mount] Use Ctrl+M to mount or dismount your mount.")
+    player:sendTextMessage(MESSAGE_STATUS_DEFAULT, pt and "[Montaria] Use Ctrl+M para montar ou desmontar." or "[Mount] Use Ctrl+M to mount or dismount your mount.")
 
     return true
 end
