@@ -1072,7 +1072,9 @@ void ProtocolGame::logout(bool displayEffect, bool forced)
 
 	if (!player->isRemoved()) {
 		if (!forced) {
-			if (player->getAccountType() < ACCOUNT_TYPE_GOD) {
+			// 06/11/2026: so personagem da staff (grupo com access: GM/CM/GOD) sai em qualquer lugar.
+			// Antes era pelo TIPO DA CONTA: todo char da conta "adm" (TesteA, Samples) deslogava no meio da luta.
+			if (!player->isAccessPlayer()) {
 				if (player->getTile()->hasFlag(TILESTATE_NOLOGOUT)) {
 					player->sendCancelMessage(RETURNVALUE_YOUCANNOTLOGOUTHERE);
 					return;
@@ -2779,7 +2781,7 @@ void ProtocolGame::parseSelectSpellAim(NetworkMessage& msg)
 		return;
 	}
 
-	if (!isFonticakClient) {
+	if (!isFonticakClient && !isAstraClient) { // 06/11/2026: ArtemisOt = Astra
 		return;
 	}
 
@@ -5950,7 +5952,8 @@ void ProtocolGame::sendCyclopediaCharacterAppearances()
 		msg.add<uint16_t>(outfit->lookType);
 		msg.addString(outfit->name);
 		msg.addByte(addons);
-		msg.addByte(1); // unlocked outfit
+		// 06/11/2026: tipo p/ a Cyclopedia (0 = padrao, 1 = quest). Antes era sempre 1: tudo aparecia como "Quest".
+		msg.addByte(outfit->unlocked ? 0 : 1);
 		msg.add<uint32_t>(outfit->lookType == currentOutfit.lookType ? 1000 : 0);
 	}
 

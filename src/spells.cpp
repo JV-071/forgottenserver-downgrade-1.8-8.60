@@ -1084,7 +1084,7 @@ bool InstantSpell::playerCastInstant(Player* player, std::string& param, bool fo
 		if (needDirection) {
 			Direction dir = player->getDirection();
 			const auto aimTarget = resolveSpellAimTurnTarget(player);
-			const bool aimEnabled = player->isFonticakClient() && player->isSpellAimAtTargetEnabled(spellId);
+			const bool aimEnabled = (player->isFonticakClient() || player->isAstraClient()) && player->isSpellAimAtTargetEnabled(spellId);
 
 			if (aimTarget && aimEnabled) {
 				dir = getDirectionTo(player->getPosition(), aimTarget->getPosition(), true);
