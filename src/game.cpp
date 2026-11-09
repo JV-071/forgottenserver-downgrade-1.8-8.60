@@ -5843,6 +5843,23 @@ void Game::playerSetAttackedCreature(uint32_t playerId, uint32_t creatureId)
 		return;
 	}
 
+	// Clientzin (05/11/2026): o "Talk" do botao direito no NPC chega como ataque (mesmo comportamento do Canary).
+	// Vira um "hi" para o NPC (o npcsystem foca no jogador e a janela de botoes 0x1C abre no foco) em vez de
+	// "You may not attack this creature".
+	if (Npc* npc = attackCreature->getNpc()) {
+		player->setAttackedCreature(nullptr);
+		player->sendCancelTarget();
+		if (!npc->getPosition().isInRange(player->getPosition(), Npcs::TalkRadius, Npcs::TalkRadius, 0)) {
+			player->sendCancelMessage(RETURNVALUE_TOOFARAWAY);
+			return;
+		}
+		internalCreatureSay(player, TALKTYPE_SAY, "hi", false);
+		if (!npc->isFocusedOn(player)) {
+			npc->sendDialogOptions(player); // NPC sem npcsystem (nao foca): abre a janela mesmo assim
+		}
+		return;
+	}
+
 	if (!InstanceUtils::canInteract(player, attackCreature)) {
 		player->sendCancelMessage(RETURNVALUE_YOUMAYNOTATTACKTHISCREATURE);
 		player->sendCancelTarget();

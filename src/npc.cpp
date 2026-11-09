@@ -553,6 +553,7 @@ void Npc::loadNpcTypeInfo()
 {
 	soundTicks = 0;
 	speechBubble = npcType->speechBubble;
+	dialogOptions = npcType->dialogOptions;
 	walkTicks = npcType->walkTicks;
 	baseSpeed = npcType->baseSpeed;
 	masterRadius = npcType->masterRadius;
@@ -830,8 +831,59 @@ void Npc::onCreatureSay(Creature* creature, SpeakClasses type, std::string_view 
 
 void Npc::onPlayerCloseChannel(Player* player)
 {
+	sendDialogClose(player);
 	if (npcEventHandler) {
 		npcEventHandler->onPlayerCloseChannel(player);
+	}
+}
+
+// Clientzin (05/11/2026): janela de dialogo do NPC, mesmo pacote 0x1C que o Canary/Crystal manda. Os botoes viram fala
+// no canal de NPC (TALKTYPE_PRIVATE_PN), entao qualquer palavra que o npcsystem ja entende ("trade", "yes", "bye",
+// "deposit all", "withdraw", "balance"...) pode ser um botao. Padrao: yes/no/bye; "trade" para NPC com bubble de loja.
+void Npc::sendDialogOptions(Player* player) const
+{
+	if (!player) {
+		return;
+	}
+
+	bool hasYes = false, hasNo = false, hasBye = false, hasTrade = false;
+	for (const auto& [optionId, text] : dialogOptions) {
+		if (optionId == 7 || text == "yes") {
+			hasYes = true;
+		} else if (optionId == 8 || text == "no") {
+			hasNo = true;
+		} else if (optionId == 9 || text == "bye") {
+			hasBye = true;
+		} else if (optionId == 0 || text == "trade") {
+			hasTrade = true;
+		}
+	}
+
+	std::vector<std::pair<uint8_t, std::string>> options;
+	options.reserve(dialogOptions.size() + 4);
+	if (!hasYes) {
+		options.emplace_back(7, "yes");
+	}
+	if (!hasNo) {
+		options.emplace_back(8, "no");
+	}
+	if (!hasBye) {
+		options.emplace_back(9, "bye");
+	}
+	if (!hasTrade && (speechBubble == SPEECHBUBBLE_TRADE || speechBubble == SPEECHBUBBLE_QUESTTRADER)) {
+		options.emplace_back(0, "trade");
+	}
+	for (const auto& option : dialogOptions) {
+		options.push_back(option);
+	}
+
+	player->sendNpcDialogOptions(getID(), options);
+}
+
+void Npc::sendDialogClose(Player* player) const
+{
+	if (player) {
+		player->sendNpcDialogClose();
 	}
 }
 
@@ -1067,12 +1119,19 @@ void Npc::setCreatureFocus(Creature* creature)
 {
 	Player* player = creature ? creature->getPlayer() : nullptr;
 	if (player) {
+		const bool newFocus = !isFocusedOn(player);
 		m_focusCreature = g_game.getPlayerWeakRef(player);
 		Creature::setFollowCreature(nullptr);
 		stopEventWalk();
 		listWalkDir.clear();
 		turnToCreature(player);
+		if (newFocus) {
+			sendDialogOptions(player); // Clientzin: abre a janela de botoes do NPC ao comecar a conversa
+		}
 	} else {
+		if (auto previous = m_focusCreature.lock()) {
+			sendDialogClose(previous.get()); // conversa acabou (bye, afastou, desconectou)
+		}
 		m_focusCreature.reset();
 		Creature::setFollowCreature(nullptr);
 		listWalkDir.clear();

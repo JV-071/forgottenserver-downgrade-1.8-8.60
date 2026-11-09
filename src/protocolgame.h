@@ -241,6 +241,9 @@ private:
 
 	void sendShop(const ShopInfoList& itemList);
 	void sendCloseShop();
+	// Clientzin/Canary 0x1C: janela de botoes do NPC (so para o client Astra/Clientzin; o 8.60 puro nao conhece o pacote)
+	void sendNpcDialogOptions(uint32_t npcId, const std::vector<std::pair<uint8_t, std::string>>& options);
+	void sendNpcDialogClose();
 	void sendSaleItemList(const std::list<ShopInfo>& shop);
 	void sendTradeItemRequest(std::string_view traderName, const Item* item, bool ack);
 	void sendCloseTrade();

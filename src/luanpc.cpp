@@ -86,6 +86,79 @@ int luaNpcGetSpectators(lua_State* L)
 	return 1;
 }
 
+// Le opcoes de dialogo (Clientzin 0x1C) a partir dos argumentos Lua, a partir do indice `first`:
+//   (id, "texto", id, "texto", ...)  ou  ({ {id, "texto"}, {optionId = id, optionText = "texto"}, ... })
+static void readDialogOptions(lua_State* L, int first, std::vector<std::pair<uint8_t, std::string>>& out)
+{
+	const int top = lua_gettop(L);
+	if (first <= top && lua_istable(L, first)) {
+		lua_pushnil(L);
+		while (lua_next(L, first) != 0) {
+			if (lua_istable(L, -1)) {
+				uint8_t optionId = 0;
+				std::string text;
+				lua_getfield(L, -1, "optionId");
+				if (lua_isnil(L, -1)) {
+					lua_pop(L, 1);
+					lua_rawgeti(L, -1, 1);
+				}
+				optionId = static_cast<uint8_t>(lua_tointeger(L, -1));
+				lua_pop(L, 1);
+				lua_getfield(L, -1, "optionText");
+				if (lua_isnil(L, -1)) {
+					lua_pop(L, 1);
+					lua_rawgeti(L, -1, 2);
+				}
+				if (const char* s = lua_tostring(L, -1)) {
+					text = s;
+				}
+				lua_pop(L, 1);
+				if (!text.empty()) {
+					out.emplace_back(optionId, std::move(text));
+				}
+			}
+			lua_pop(L, 1);
+		}
+		return;
+	}
+	for (int i = first; i + 1 <= top; i += 2) {
+		if (const char* s = lua_tostring(L, i + 1)) {
+			out.emplace_back(static_cast<uint8_t>(lua_tointeger(L, i)), std::string(s));
+		}
+	}
+}
+
+int luaNpcAddDialogOption(lua_State* L)
+{
+	// npc:addDialogOption(id, "texto"[, id, "texto"...]) ou npc:addDialogOption({ {id, "texto"}, ... })
+	Npc* npc = getUserdata<Npc>(L, 1);
+	if (!npc) {
+		lua_pushnil(L);
+		return 1;
+	}
+	std::vector<std::pair<uint8_t, std::string>> options;
+	readDialogOptions(L, 2, options);
+	for (auto& [optionId, text] : options) {
+		npc->addDialogOption(optionId, std::move(text));
+	}
+	pushBoolean(L, true);
+	return 1;
+}
+
+int luaNpcSendDialogOptions(lua_State* L)
+{
+	// npc:sendDialogOptions(player)  -> (re)abre a janela de botoes para o jogador
+	Npc* npc = getUserdata<Npc>(L, 1);
+	Player* player = getPlayer(L, 2);
+	if (!npc || !player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	npc->sendDialogOptions(player);
+	pushBoolean(L, true);
+	return 1;
+}
+
 int luaNpcGetSpeechBubble(lua_State* L)
 {
 	// npc:getSpeechBubble()
@@ -136,6 +209,9 @@ void LuaScriptInterface::registerNpc()
 
 	registerMethod("Npc", "getSpeechBubble", luaNpcGetSpeechBubble);
 	registerMethod("Npc", "setSpeechBubble", luaNpcSetSpeechBubble);
+
+	registerMethod("Npc", "addDialogOption", luaNpcAddDialogOption);
+	registerMethod("Npc", "sendDialogOptions", luaNpcSendDialogOptions);
 }
 
 // ─── NpcType ─────────────────────────────────────────────────────────────────
@@ -409,6 +485,20 @@ int luaNpcTypeParameter(lua_State* L)
 	return 1;
 }
 
+int luaNpcTypeAddDialogOptions(lua_State* L)
+{
+	// npcType:addDialogOptions({ {optionId = id, optionText = "texto"}, ... }) ou (id, "texto", ...)
+	// Botoes extras da janela de dialogo (Clientzin 0x1C); copiados para cada Npc em loadNpcTypeInfo.
+	auto* npcType = getUserdata<NpcType>(L, 1);
+	if (!npcType) {
+		lua_pushnil(L);
+		return 1;
+	}
+	readDialogOptions(L, 2, npcType->dialogOptions);
+	pushBoolean(L, true);
+	return 1;
+}
+
 int luaNpcTypeHealth(lua_State* L)
 {
 	// get: npcType:health() set: npcType:health(health)
@@ -524,6 +614,7 @@ void LuaScriptInterface::registerNpcType()
 	registerMethod("NpcType", "name", luaNpcTypeName);
 	registerMethod("NpcType", "eventType", luaNpcTypeEventType);
 	registerMethod("NpcType", "speechBubble", luaNpcTypeSpeechBubble);
+	registerMethod("NpcType", "addDialogOptions", luaNpcTypeAddDialogOptions);
 	registerMethod("NpcType", "walkInterval", luaNpcTypeWalkTicks);
 	registerMethod("NpcType", "walkSpeed", luaNpcTypeBaseSpeed);
 	registerMethod("NpcType", "spawnRadius", luaNpcTypeMasterRadius);
