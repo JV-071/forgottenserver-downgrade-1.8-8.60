@@ -15,6 +15,20 @@
 			"toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
 		},
 		{
+			"name": "vcpkg-dev",
+			"inherits": [
+				"vcpkg"
+			],
+			"description": "Development build: Release without LTO, without unity build and without tests (fast incremental rebuilds). Use 'vcpkg' for production.",
+			"binaryDir": "${sourceDir}/build-dev",
+			"cacheVariables": {
+				"BUILD_TESTING": "OFF",
+				"CMAKE_BUILD_TYPE": "Release",
+				"ENABLE_IPO": "OFF",
+				"ENABLE_UNITY_BUILD": "OFF"
+			}
+		},
+		{
 			"name": "asan-linux",
 			"inherits": [
 				"default"
@@ -151,6 +165,11 @@
 		{
 			"name": "vcpkg",
 			"configurePreset": "vcpkg"
+		},
+		{
+			"name": "vcpkg-dev",
+			"configurePreset": "vcpkg-dev",
+			"configuration": "Release"
 		},
 		{
 			"name": "asan-linux",

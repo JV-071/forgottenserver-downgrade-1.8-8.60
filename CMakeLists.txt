@@ -320,8 +320,12 @@ if (ENABLE_UNITY_BUILD)
 endif()
 
 ### INTERPROCEDURAL OPTIMIZATION ###
+# ENABLE_IPO=OFF skips LTO (fast relink for development builds; production keeps it ON)
+option(ENABLE_IPO "Enable interprocedural optimization (LTO) for Release builds" ON)
 if (ENABLE_ASAN)
     message(STATUS "IPO/LTO disabled because ENABLE_ASAN is enabled")
+elseif (NOT ENABLE_IPO)
+    message(STATUS "IPO/LTO disabled because ENABLE_IPO is OFF")
 else ()
     include(CheckIPOSupported)
     check_ipo_supported(RESULT result OUTPUT error)
@@ -370,4 +374,4 @@ if(NOT SKIP_GIT)
 endif()
 ### END Git Version ###
 
-target_precompile_headers(tfs PUBLIC src/otpch.h)
+target_precompile_headers(tfs PRIVATE src/otpch.h)
