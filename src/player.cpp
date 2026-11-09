@@ -3558,6 +3558,22 @@ void Player::setNextActionTask(std::unique_ptr<SchedulerTask> task, bool resetId
 	}
 }
 
+void Player::setNextAttackTask(std::unique_ptr<SchedulerTask> task)
+{
+	// Auto-ataque com um unico evento agendado por jogador. Antes, com allowAutoAttackWithoutExhaustion (ou
+	// classicAttackSpeed), cada chamada de doAttacking/maintainAttackFlow fazia g_scheduler.addEvent sem cancelar
+	// o anterior; como lastAttack so avanca quando o golpe acerta, perseguir um alvo fora de alcance abria uma
+	// cadeia nova a cada think (1 s) e a cada passo, todas disparando a cada intervalo (250 ms com fist alto).
+	if (attackTaskEvent != 0) {
+		g_scheduler.stopEvent(attackTaskEvent);
+		attackTaskEvent = 0;
+	}
+
+	if (task) {
+		attackTaskEvent = g_scheduler.addEvent(std::move(task));
+	}
+}
+
 uint32_t Player::getNextActionTime() const { return std::max<int64_t>(MIN_TASK_INTERVAL, nextAction - OTSYS_TIME()); }
 
 void Player::onThink(uint32_t interval)
@@ -4105,13 +4121,36 @@ uint64_t Player::getAttackSpeedBeforeEquipmentBonus() const
 
 uint32_t Player::getRawAttackSpeed() const
 {
-	return attackSpeed > 0 ? attackSpeed : vocation->getAttackSpeed();
+	const int64_t base = attackSpeed > 0 ? attackSpeed : vocation->getAttackSpeed();
+	// outfit/montaria somam ao intervalo (positivo = mais lento, como no XML), sem congelar a base da vocacao
+	return static_cast<uint32_t>(std::max<int64_t>(SCHEDULER_MINTICKS, base + cosmeticAttackSpeed));
 }
 
 uint32_t Player::getAttackSpeed() const
 {
-	return EquipmentCombatBonus::applyAttackSpeedPercent(getAttackSpeedBeforeEquipmentBonus(),
-	                                                     getEquipmentAttackSpeedPercent());
+	uint64_t baseSpeed = getAttackSpeedBeforeEquipmentBonus();
+
+	// Styller/PbotWars (portado do Crystal em 05/11/2026): o skill de fist acelera o ataque. Curva medida no PbotWars
+	// (04/11/2026, 22 pontos, 9 vocacoes, erro zero):
+	//   ms = base - floor(base * fist * fistAttackSpeedPercent / 10000), nunca abaixo de fistAttackSpeedMinimum.
+	// base = attackspeed da vocacao (vocations.xml: magos 1400, RP 1200, Force Archer/Titan Blader 1100, Supreme
+	// 1000/1200, Godly 900). fist = skill efetivo (inclui buffs como dore gauge). Chaves em config.lua.
+	uint64_t minimum = 0;
+	if (getBoolean(ConfigManager::FIST_ATTACK_SPEED_ENABLED)) {
+		const int64_t base = static_cast<int64_t>(baseSpeed);
+		const int64_t fist = getSkillLevel(SKILL_FIST);
+		const int64_t percent = getInteger(ConfigManager::FIST_ATTACK_SPEED_PERCENT);
+		const int64_t fistMinimum =
+		    std::max<int64_t>(SCHEDULER_MINTICKS, getInteger(ConfigManager::FIST_ATTACK_SPEED_MINIMUM));
+		const int64_t reduced = base - (base * fist * percent) / 10000;
+		baseSpeed = static_cast<uint64_t>(std::max<int64_t>(fistMinimum, reduced));
+		minimum = static_cast<uint64_t>(fistMinimum);
+	}
+
+	// fistAttackSpeedMinimum e o piso FINAL: o bonus percentual de equipamento nao passa por baixo dele
+	// (antes o piso era aplicado antes do equipamento e o intervalo real podia cair ate 100 ms).
+	const uint64_t withEquipment = EquipmentCombatBonus::applyAttackSpeedPercent(baseSpeed, getEquipmentAttackSpeedPercent());
+	return static_cast<uint32_t>(std::max<uint64_t>(minimum, withEquipment));
 }
 
 bool Player::hasRealShield() const
@@ -5803,6 +5842,7 @@ bool Player::setAttackedCreature(Creature* creature)
 	} else {
 		// Stop stamina trainer regeneration if we stop attacking
 		staminaTrainerActive = false;
+		setNextAttackTask(nullptr);
 	}
 	return true;
 }
@@ -5866,7 +5906,7 @@ void Player::doAttacking(uint32_t)
 		if (!classicSpeed && !allowAutoAttackWithoutExhaustion) {
 			setNextActionTask(std::move(task), false);
 		} else {
-			g_scheduler.addEvent(std::move(task));
+			setNextAttackTask(std::move(task));
 		}
 
 		if (result) {
@@ -5892,7 +5932,7 @@ void Player::maintainAttackFlow()
 			if (!classicSpeed && !allowAutoAttackWithoutExhaustion) {
 				setNextActionTask(std::move(task), false);
 			} else {
-				g_scheduler.addEvent(std::move(task));
+				setNextAttackTask(std::move(task));
 			}
 		}
 	}

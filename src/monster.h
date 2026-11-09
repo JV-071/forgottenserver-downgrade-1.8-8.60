@@ -242,6 +242,7 @@ private:
 	std::weak_ptr<Spawn> spawn;
 
 	int64_t lastMeleeAttack = 0;
+	uint64_t hitExperienceGiven = 0; // XP por hit ja paga (experiencePerHit)
 
 	uint32_t attackTicks = 0;
 	uint32_t targetChangeTicks = 0;
@@ -337,6 +338,14 @@ private:
 	void onThinkDefense(uint32_t interval);
 
 	uint64_t getLostExperience() const override;
+	// Styller/PbotWars: XP por hit (config.lua experiencePerHit; portado do Crystal em 05/11/2026). Paga a exp
+	// proporcional ao dano (ceil(exp * dano / vidaMax)) ate esgotar a exp do monstro; na morte nao vem nada.
+public:
+	void addHitExperience(const std::shared_ptr<Creature>& attacker, int32_t damage);
+	uint64_t getGainedExperience(const std::shared_ptr<Creature>& attacker) const override;
+	uint64_t getGainedExperience(const std::shared_ptr<Creature>& attacker, double damageRatio) const override;
+
+private:
 	uint16_t getLookCorpse() const override { return mType->info.lookcorpse; }
 	void dropLoot(Container* corpse, Creature* lastHitCreature) override;
 	uint32_t getDamageImmunities() const override { return mType->info.damageImmunities; }

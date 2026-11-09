@@ -861,6 +861,9 @@ public:
 	void setSecureMode(bool mode) { secureMode = mode; }
 
 	void setAttackSpeed(uint32_t speed) { attackSpeed = speed; }
+	// outfit/montaria (outfits.xml / mounts.xml attackSpeed): delta em ms somado ao intervalo. Antes virava um
+	// setAttackSpeed absoluto, que congelava a base da vocacao (promocao depois nao mudava mais a velocidade).
+	void addCosmeticAttackSpeed(int32_t delta) { cosmeticAttackSpeed += delta; }
 	uint32_t getAttackSpeed() const;
 	uint32_t getRawAttackSpeed() const;
 	uint32_t getEquipmentAttackSpeedPercent() const;
@@ -1796,6 +1799,8 @@ private:
 	void setNextWalkActionTask(std::unique_ptr<SchedulerTask> task);
 	void setNextWalkTask(std::unique_ptr<SchedulerTask> task);
 	void setNextActionTask(std::unique_ptr<SchedulerTask> task, bool resetIdleTime = true);
+	// um unico evento de auto-ataque por jogador (cancela o anterior); nullptr so cancela
+	void setNextAttackTask(std::unique_ptr<SchedulerTask> task);
 
 	void death(Creature* lastHitCreature) override;
 	bool dropCorpse(Creature* lastHitCreature, Creature* mostDamageCreature, bool lastHitUnjustified,
@@ -1918,6 +1923,7 @@ private:
 	std::shared_ptr<StoreInbox> storeInbox = nullptr;
 
 	uint32_t attackSpeed = 0;
+	int32_t cosmeticAttackSpeed = 0;
 	uint32_t inventoryWeight = 0;
 	uint32_t capacity = 40000;
 	uint32_t damageImmunities = 0;
@@ -1935,6 +1941,7 @@ private:
 	float resetManaSpellBonus = 0.0f;
 	uint32_t magLevel = 0;
 	uint32_t actionTaskEvent = 0;
+	uint32_t attackTaskEvent = 0;
 	uint32_t nextStepEvent = 0;
 	uint32_t walkTaskEvent = 0;
 	uint32_t MessageBufferTicks = 0;
