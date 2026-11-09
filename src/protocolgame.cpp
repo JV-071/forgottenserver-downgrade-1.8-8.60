@@ -3899,6 +3899,43 @@ void ProtocolGame::sendCloseShop()
 	writeToOutputBuffer(msg);
 }
 
+// Layout lido por ProtocolGame::parseNpcChatWindow do Clientzin (igual ao Canary):
+//   0x1C, status u8 (0 = abrir, !=0 = fechar), qtd de NPCs u8, ids u32..., qtd de botoes u8, [id u8, texto string]...
+void ProtocolGame::sendNpcDialogOptions(uint32_t npcId, const std::vector<std::pair<uint8_t, std::string>>& options)
+{
+	if (!isAstraClient) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x1C);
+	msg.addByte(0); // abrir
+	msg.addByte(1); // um NPC
+	msg.add<uint32_t>(npcId);
+	msg.addByte(static_cast<uint8_t>(std::min<size_t>(options.size(), 255)));
+	size_t written = 0;
+	for (const auto& [optionId, text] : options) {
+		if (written++ >= 255) {
+			break;
+		}
+		msg.addByte(optionId);
+		msg.addString(text);
+	}
+	writeToOutputBuffer(msg);
+}
+
+void ProtocolGame::sendNpcDialogClose()
+{
+	if (!isAstraClient) {
+		return;
+	}
+
+	NetworkMessage msg;
+	msg.addByte(0x1C);
+	msg.addByte(1); // fechar
+	writeToOutputBuffer(msg);
+}
+
 void ProtocolGame::sendSaleItemList(const std::list<ShopInfo>& shop)
 {
 	NetworkMessage msg;

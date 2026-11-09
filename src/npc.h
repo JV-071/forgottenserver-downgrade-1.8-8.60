@@ -116,6 +116,8 @@ public:
 	uint32_t soundChance = 0;
 	uint32_t soundSpeedTicks = 0;
 	std::vector<uint16_t> soundVector;
+	// Botoes extras da janela de dialogo do NPC (pacote 0x1C do Clientzin/Canary): {id, texto}. Lua: npcType:addDialogOptions().
+	std::vector<std::pair<uint8_t, std::string>> dialogOptions;
 
 	uint32_t walkTicks = 1500;
 	uint32_t baseSpeed = 100;
@@ -226,6 +228,17 @@ public:
 	void turnToCreature(Creature* creature);
 	void setCreatureFocus(Creature* creature);
 	bool hasCreatureFocus() const { return !m_focusCreature.expired(); }
+	bool isFocusedOn(const Player* player) const
+	{
+		auto focused = m_focusCreature.lock();
+		return player && focused && focused.get() == player;
+	}
+
+	// Janela de dialogo do NPC (Clientzin, pacote 0x1C): botoes yes/no/bye (+ trade pelo speech bubble) + os extras
+	// declarados em Lua. Enviada ao ganhar o foco do jogador ("Talk" do botao direito ou "hi") e fechada ao perder.
+	void sendDialogOptions(Player* player) const;
+	void sendDialogClose(Player* player) const;
+	void addDialogOption(uint8_t optionId, std::string text) { dialogOptions.emplace_back(optionId, std::move(text)); }
 	bool setFollowCreature(Creature* creature) override;
 	void clearFocusIfNeeded(Player* player);
 
@@ -274,6 +287,7 @@ private:
 	void reset(bool reload = false);
 
 	std::set<std::shared_ptr<Player>> shopPlayerSet;
+	std::vector<std::pair<uint8_t, std::string>> dialogOptions;
 
 	std::string name;
 	std::string filename;

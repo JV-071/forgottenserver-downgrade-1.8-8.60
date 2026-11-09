@@ -1526,6 +1526,18 @@ public:
 			client->sendCloseShop();
 		}
 	}
+	void sendNpcDialogOptions(uint32_t npcId, const std::vector<std::pair<uint8_t, std::string>>& options) const
+	{
+		if (client) {
+			client->sendNpcDialogOptions(npcId, options);
+		}
+	}
+	void sendNpcDialogClose() const
+	{
+		if (client) {
+			client->sendNpcDialogClose();
+		}
+	}
 	void sendTradeItemRequest(std::string_view traderName, const Item* item, bool ack) const
 	{
 		if (client) {

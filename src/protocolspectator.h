@@ -321,6 +321,19 @@ class ProtocolSpectator {
                 it->sendCloseShop();
         }
 
+        // Clientzin: janela de botoes do NPC (0x1C) - so para o dono da conexao, espectadores nao conversam com NPC
+        void sendNpcDialogOptions(uint32_t npcId, const std::vector<std::pair<uint8_t, std::string>>& options) {
+            auto o = owner.lock();
+            if (o)
+                o->sendNpcDialogOptions(npcId, options);
+        }
+
+        void sendNpcDialogClose() {
+            auto o = owner.lock();
+            if (o)
+                o->sendNpcDialogClose();
+        }
+
         void sendPrivateMessage(const Player *speaker, SpeakClasses type, std::string_view text) {
             auto o = owner.lock();
             if (o)
