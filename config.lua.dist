@@ -338,6 +338,17 @@ maxMessageBuffer = 4
 emoteSpells = false
 classicEquipmentSlots = true
 classicAttackSpeed = false
+
+-- Artemis Online (base PbotWars): o skill de fist acelera o ataque.
+-- intervalo (ms) = attackspeed da vocacao (vocations.xml) - floor(attackspeed * fist * fistAttackSpeedPercent / 10000),
+-- nunca abaixo de fistAttackSpeedMinimum (piso FINAL, aplicado depois do bonus de equipamento).
+-- Os padroes do codigo sao estes mesmos valores; as chaves existem para ajuste.
+fistAttackSpeed = true
+fistAttackSpeedPercent = 34
+fistAttackSpeedMinimum = 250
+
+-- XP por golpe (base PbotWars): cada hit paga ceil(exp * dano / vidaMax) ate esgotar a exp do monstro; na morte nao vem exp.
+experiencePerHit = true
 showScriptsLogInConsole = false
 showOnlineStatusInCharlist = false
 yellMinimumLevel = 2
