@@ -443,6 +443,56 @@ Monster::~Monster()
 	spawn = std::weak_ptr<Spawn>();
 }
 
+// Styller/PbotWars (Exphit.lua do datapack 2014, portado do Crystal): exp por hit = ceil(expTotal * dano / vidaMax),
+// descontando de um "pool" por monstro, entao a soma nunca passa de 100% da exp. Summon -> o dono recebe.
+// A exp entra no pipeline normal (Player::onGainExperience: stages/rateExp, party, mensagem por hit).
+void Monster::addHitExperience(const std::shared_ptr<Creature>& attacker, int32_t damage)
+{
+	if (!attacker || damage <= 0 || getMaster()) {
+		return;
+	}
+
+	const auto master = attacker->getMaster();
+	const auto& receiver = master ? master : attacker;
+	Player* player = receiver->getPlayer();
+	if (!player) {
+		return;
+	}
+
+	const uint64_t totalExp = getLostExperience();
+	const int32_t maxHealth = getMaxHealth();
+	if (totalExp == 0 || maxHealth <= 0 || hitExperienceGiven >= totalExp) {
+		return;
+	}
+
+	const int64_t portion = std::min<int64_t>(damage, maxHealth);
+	auto gain = static_cast<uint64_t>(
+	    std::ceil(static_cast<double>(totalExp) * static_cast<double>(portion) / static_cast<double>(maxHealth)));
+	gain = std::min<uint64_t>(gain, totalExp - hitExperienceGiven);
+	if (gain == 0) {
+		return;
+	}
+
+	hitExperienceGiven += gain;
+	player->onGainExperience(gain, shared_from_this());
+}
+
+uint64_t Monster::getGainedExperience(const std::shared_ptr<Creature>& attacker) const
+{
+	if (ConfigManager::getBoolean(ConfigManager::EXPERIENCE_PER_HIT)) {
+		return 0; // ja foi paga hit a hit (addHitExperience); nada na morte
+	}
+	return Creature::getGainedExperience(attacker);
+}
+
+uint64_t Monster::getGainedExperience(const std::shared_ptr<Creature>& attacker, double damageRatio) const
+{
+	if (ConfigManager::getBoolean(ConfigManager::EXPERIENCE_PER_HIT)) {
+		return 0;
+	}
+	return Creature::getGainedExperience(attacker, damageRatio);
+}
+
 uint64_t Monster::getLostExperience() const
 {
 	if (!skillLoss) {

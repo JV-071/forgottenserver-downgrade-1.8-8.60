@@ -388,6 +388,8 @@ bool ConfigManager::load()
 	booleans[Boolean::ALLOW_CHANGEOUTFIT] = getGlobalBoolean(L, "allowChangeOutfit", true);
 	booleans[Boolean::ONE_PLAYER_ON_ACCOUNT] = getGlobalBoolean(L, "onePlayerOnlinePerAccount", true);
 	booleans[Boolean::AIMBOT_HOTKEY_ENABLED] = getGlobalBoolean(L, "hotkeyAimbotEnabled", true);
+	booleans[Boolean::FIST_ATTACK_SPEED_ENABLED] = getGlobalBoolean(L, "fistAttackSpeed", true);
+	booleans[Boolean::EXPERIENCE_PER_HIT] = getGlobalBoolean(L, "experiencePerHit", true);
 	booleans[Boolean::SPAWN_START_EFFECT_ENABLED] = getGlobalBoolean(L, "spawnStartEffectEnabled", true);
 	booleans[Boolean::REMOVE_RUNE_CHARGES] = getGlobalBoolean(L, "removeChargesFromRunes", true);
 	booleans[Boolean::REMOVE_WEAPON_AMMO] = getGlobalBoolean(L, "removeWeaponAmmunition", true);
@@ -637,6 +639,8 @@ bool ConfigManager::load()
 	    getGlobalInteger(L, "RANGE_MOVE_ITEM_INTERVAL", RANGE_MOVE_ITEM_INTERVAL);
 	integers[Integer::RANGE_USE_ITEM_INTERVAL] =
 	    getGlobalInteger(L, "RANGE_USE_ITEM_INTERVAL", RANGE_USE_ITEM_INTERVAL);
+	integers[Integer::FIST_ATTACK_SPEED_PERCENT] = getGlobalInteger(L, "fistAttackSpeedPercent", 34);
+	integers[Integer::FIST_ATTACK_SPEED_MINIMUM] = getGlobalInteger(L, "fistAttackSpeedMinimum", 250);
 	integers[Integer::RANGE_USE_ITEM_EX_INTERVAL] =
 	    getGlobalInteger(L, "RANGE_USE_ITEM_EX_INTERVAL", RANGE_USE_ITEM_EX_INTERVAL);
 	integers[Integer::RANGE_ROTATE_ITEM_INTERVAL] =

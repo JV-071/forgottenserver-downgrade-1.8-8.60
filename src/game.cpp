@@ -7681,6 +7681,13 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 		target->drainHealth(attackerRef, realDamage);
 		addCreatureHealth(spectators, target);
 
+		// Styller/PbotWars: XP por hit (realDamage ja esta limitado a vida atual do monstro; ver Monster::addHitExperience)
+		if (attackerRef && getBoolean(ConfigManager::EXPERIENCE_PER_HIT)) {
+			if (Monster* targetMonster = target->getMonster()) {
+				targetMonster->addHitExperience(attackerRef, realDamage);
+			}
+		}
+
 		// onPlayerAttack callback
 		if (attackerPlayer) {
 			if (Monster* targetMonster = target->getMonster()) {

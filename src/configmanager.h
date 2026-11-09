@@ -11,6 +11,8 @@ enum Boolean
 	ALLOW_CHANGEOUTFIT,
 	ONE_PLAYER_ON_ACCOUNT,
 	AIMBOT_HOTKEY_ENABLED,
+	FIST_ATTACK_SPEED_ENABLED, // Styller/PbotWars: fist acelera o ataque (ver Player::getAttackSpeed)
+	EXPERIENCE_PER_HIT,        // Styller/PbotWars: exp paga a cada hit (ver Monster::addHitExperience)
 	SPAWN_START_EFFECT_ENABLED,
 	REMOVE_RUNE_CHARGES,
 	REMOVE_WEAPON_AMMO,
@@ -270,6 +272,8 @@ enum Integer
 	RANGE_USE_WITH_CREATURE_INTERVAL,
 	RANGE_MOVE_ITEM_INTERVAL,
 	RANGE_USE_ITEM_INTERVAL,
+	FIST_ATTACK_SPEED_PERCENT, // 0,34 % da base por ponto de fist (34 = valor medido no PbotWars)
+	FIST_ATTACK_SPEED_MINIMUM, // piso em ms
 	RANGE_USE_ITEM_EX_INTERVAL,
 	RANGE_ROTATE_ITEM_INTERVAL,
 	PLAYER_SPEED_PER_LEVEL,
