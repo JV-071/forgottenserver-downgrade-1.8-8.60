@@ -296,6 +296,9 @@ function(add_tfs_library target)
 		)
 	target_compile_definitions(${target} PUBLIC ASIO_STANDALONE)
 	set_target_properties(${target} PROPERTIES UNITY_BUILD ${ENABLE_UNITY_BUILD})
+	# Precompile otpch.h for the library itself (previously only the tiny tfs executable had it,
+	# so the ~140 library sources parsed every system header from scratch).
+	target_precompile_headers(${target} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/otpch.h)
 endfunction()
 
 add_tfs_library(tfslib)

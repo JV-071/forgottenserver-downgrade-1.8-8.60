@@ -48,6 +48,8 @@ jobs:
           --health-cmd="mysqladmin ping -h localhost -pmarket_ci_only"
           --health-interval=10s --health-timeout=5s --health-retries=12
     env:
+      CCACHE_MAXSIZE: 1G
+      CCACHE_COMPILERCHECK: content
       TFS_TEST_DB_NAME: tfs_market_test_ci
       TFS_TEST_DB_HOST: 127.0.0.1
       TFS_TEST_DB_USER: root
@@ -67,12 +69,27 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends \
-            cmake ninja-build build-essential pkg-config \
+            cmake ninja-build build-essential pkg-config ccache \
             patch clang \
             libssl-dev zlib1g-dev libfmt-dev libspdlog-dev \
             libpugixml-dev libabsl-dev \
             libasio-dev \
             default-libmysqlclient-dev default-mysql-client
+
+      - name: Prepare compiler cache
+        id: compiler
+        run: |
+          echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+          echo "version=$(clang++ -dumpversion)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache compiler objects
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-clang-${{ steps.compiler.outputs.version }}-${{ hashFiles('src/**', 'cmake/**', 'CMakeLists.txt', 'tools/patches/**') }}
+          restore-keys: |
+            ccache-linux-clang-${{ steps.compiler.outputs.version }}-
+            ccache-linux-clang-
 
       - name: Cache Lua 5.5 source
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -144,9 +161,16 @@ jobs:
           -DLUA_LIBRARY=/usr/local/lib/liblua.a
           "-DLUA_LIBRARIES=/usr/local/lib/liblua.a;m;dl"
           -DLUA_VERSION_STRING=5.5.0
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
         run: cmake --build build --parallel $(nproc)
+
+      - name: Compiler cache statistics
+        if: always()
+        run: ccache --show-stats
+        continue-on-error: true
 
       - name: Initialize disposable Market database
         env:
