@@ -1101,7 +1101,7 @@ if Modules == nil then
                                    inBackpacks, ITEM_BACKPACK)
         if a < amount then
             if reason == "capacity" then
-                player:sendCancelMessage("You do not have enough capacity.")
+                player:sendCancelMessage(NpcLang and NpcLang.t(cid, "You do not have enough capacity.") or "You do not have enough capacity.")
                 self.npcHandler.talkStart[cid] = os.time()
                 return false
             end

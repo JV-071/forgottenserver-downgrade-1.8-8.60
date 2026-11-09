@@ -264,7 +264,7 @@ if not NpcShop then
         local a, b, reason = doNpcSellItem(player, itemid, amount, itemSubtype, false, inBackpacks, ITEM_SHOPPING_BAG)
         if a < amount then
             if reason == "capacity" then
-                local msg = "You do not have enough capacity."
+                local msg = NpcLang and NpcLang.t(player, "You do not have enough capacity.") or "You do not have enough capacity."
                 player:sendCancelMessage(msg)
                 focus:addFocus(player)
                 return false
