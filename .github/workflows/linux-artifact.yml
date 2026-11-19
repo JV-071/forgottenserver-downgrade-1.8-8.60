@@ -1,0 +1,145 @@
+name: Linux artifact
+
+# Portable Linux x86_64 release build of the server, delivered as a downloadable artifact.
+#
+#  - dependencies come from vcpkg (manifest mode, static, release-only triplet), so the binary
+#    needs only glibc/libstdc++ at run time and does not depend on the distro's library versions
+#  - built on ubuntu-24.04 (glibc 2.39): runs on that or anything newer (e.g. Debian 13)
+#  - no -march=native: the binary must run on a different machine than the runner
+#  - the vcpkg binary cache is saved right after configure, so a compile error never throws
+#    the dependency build away
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ci/linux-build
+
+permissions:
+  contents: read
+
+env:
+  VCPKG_DISABLE_METRICS: "1"
+  VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.cache/vcpkg,readwrite
+  VCPKG_DOWNLOADS: ${{ github.workspace }}/.cache/downloads
+  TRIPLET: x64-linux-release
+
+jobs:
+  build:
+    name: linux-x86_64-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install compiler and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc g++ build-essential cmake ninja-build pkg-config \
+            autoconf autoconf-archive automake libtool m4 perl \
+            curl zip unzip tar ca-certificates git linux-libc-dev python3
+
+      - name: Build identity
+        id: identity
+        run: |
+          mkdir -p .cache/vcpkg .cache/downloads
+          baseline="$(python3 -c "import json; print(json.load(open('vcpkg.json'))['builtin-baseline'])")"
+          compiler="$(g++ -dumpfullversion)"
+          echo "baseline=$baseline" >> "$GITHUB_OUTPUT"
+          echo "compiler=$compiler" >> "$GITHUB_OUTPUT"
+          echo "runner=$ImageOS/$ImageVersion  g++ $compiler  $(cmake --version | head -1)  ninja $(ninja --version)  cores=$(nproc)"
+          ldd --version | head -1
+
+      - name: Restore vcpkg dependencies
+        id: dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/vcpkg
+          key: deps-v1-linux-${{ env.TRIPLET }}-gcc${{ steps.identity.outputs.compiler }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/**') }}
+          restore-keys: |
+            deps-v1-linux-${{ env.TRIPLET }}-gcc${{ steps.identity.outputs.compiler }}-
+
+      - name: Checkout vcpkg at the manifest baseline
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ steps.identity.outputs.baseline }}
+          path: .ci/vcpkg
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Bootstrap vcpkg
+        run: |
+          ./.ci/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+          echo "VCPKG_ROOT=$GITHUB_WORKSPACE/.ci/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Configure
+        id: configure
+        run: |
+          cmake --preset vcpkg -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF \
+            -DENABLE_NATIVE_OPTIMIZATIONS=OFF \
+            -DVCPKG_TARGET_TRIPLET=${{ env.TRIPLET }} \
+            -DVCPKG_HOST_TRIPLET=${{ env.TRIPLET }}
+
+      # Saved before compiling: a source error must not discard the dependency build.
+      - name: Save vcpkg dependencies
+        if: ${{ !cancelled() && steps.configure.outcome == 'success' && steps.dependencies.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/vcpkg
+          key: ${{ steps.dependencies.outputs.cache-primary-key }}
+
+      - name: Build
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          binary=build/tfs
+          test -x "$binary"
+          mkdir -p package
+          cp "$binary" package/tfs
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "ref=$GITHUB_REF"
+            echo "runner=$ImageOS/$ImageVersion"
+            echo "compiler=g++ $(g++ -dumpfullversion)"
+            echo "glibc_build=$(ldd --version | head -1)"
+            echo "glibc_required=$(objdump -T "$binary" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)"
+            echo "glibcxx_required=$(objdump -T "$binary" | grep -o 'GLIBCXX_[0-9.]*' | sort -uV | tail -1)"
+            file "$binary"
+            echo "--- ldd on the runner"
+            ldd "$binary"
+          } | tee package/build-info.txt
+          # a tarball keeps the executable bit (artifact zips do not)
+          tar -czf tfs-linux-x86_64.tar.gz -C package .
+          ls -lh tfs-linux-x86_64.tar.gz package/
+
+      - name: Upload server binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfs-linux-x86_64
+          path: tfs-linux-x86_64.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-linux-${{ github.run_attempt }}
+          path: |
+            build/CMakeCache.txt
+            build/vcpkg-manifest-install.log
+            build/CMakeFiles/CMakeConfigureLog.yaml
+            .ci/vcpkg/buildtrees/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
